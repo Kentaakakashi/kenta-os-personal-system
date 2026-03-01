@@ -20,6 +20,8 @@ const PRESET_LABELS: Record<NewsPresetKey, string> = {
   Gaming: "Gaming",
   Health: "Health",
   Entertainment: "Entertainment",
+  Education: "Education",
+  TamilNadu: "Tamil Nadu",
 };
 
 function normalizeTag(tag: string) {
@@ -68,35 +70,6 @@ const WidgetSettingsModal = ({ open, onClose, widgetKey, settings, onUpdate }: P
         </DialogHeader>
 
         <div className="flex flex-col gap-4 mt-2">
-          {widgetKey === "weather" && (
-            <>
-              <label className="flex flex-col gap-1.5">
-                <span className="kos-label">Location</span>
-                <input
-                  className="kos-button px-3 py-2 text-xs"
-                  value={settings.weather.location}
-                  onChange={(e) => onUpdate("weather", { location: e.target.value })}
-                />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className="kos-label">Unit</span>
-                <div className="flex gap-2">
-                  {(["celsius", "fahrenheit"] as const).map((u) => (
-                    <button
-                      key={u}
-                      className={`kos-button px-3 py-1.5 text-xs ${
-                        settings.weather.unit === u ? "!bg-primary/15 !border-primary/30" : ""
-                      }`}
-                      onClick={() => onUpdate("weather", { unit: u })}
-                    >
-                      {u === "celsius" ? "°C" : "°F"}
-                    </button>
-                  ))}
-                </div>
-              </label>
-            </>
-          )}
-
           {widgetKey === "news" && (
             <>
               <label className="flex flex-col gap-1.5">
@@ -109,23 +82,6 @@ const WidgetSettingsModal = ({ open, onClose, widgetKey, settings, onUpdate }: P
                   value={settings.news.count}
                   onChange={(e) => onUpdate("news", { count: Number(e.target.value) })}
                 />
-              </label>
-
-              <label className="flex flex-col gap-1.5">
-                <span className="kos-label">Language</span>
-                <div className="flex gap-2">
-                  {(["en", "hi"] as const).map((lng) => (
-                    <button
-                      key={lng}
-                      className={`kos-button px-3 py-1.5 text-xs ${
-                        settings.news.language === lng ? "!bg-primary/15 !border-primary/30" : ""
-                      }`}
-                      onClick={() => onUpdate("news", { language: lng })}
-                    >
-                      {lng === "en" ? "English" : "Hindi"}
-                    </button>
-                  ))}
-                </div>
               </label>
 
               <div className="flex flex-col gap-1.5">
@@ -152,7 +108,7 @@ const WidgetSettingsModal = ({ open, onClose, widgetKey, settings, onUpdate }: P
                   <input
                     className="kos-button px-3 py-2 text-xs flex-1"
                     value={tagInput}
-                    placeholder="eg: exams, anime, india (comma-separated)"
+                    placeholder="eg: exams, TNPSC, NEET (comma-separated)"
                     onChange={(e) => setTagInput(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
@@ -183,95 +139,15 @@ const WidgetSettingsModal = ({ open, onClose, widgetKey, settings, onUpdate }: P
               </div>
 
               <p className="kos-mono text-[10px] text-muted-foreground">
-                Tip: pick a few topics + tags. Too many = messy results.
+                “Tamil Nadu” + “Education” are boosted for Lemon OS by default. You can still pick anything.
               </p>
             </>
           )}
 
-          {widgetKey === "music" && (
-            <>
-              <label className="flex flex-col gap-1.5">
-                <span className="kos-label">Default Volume: {settings.music.defaultVolume}%</span>
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  className="accent-primary"
-                  value={settings.music.defaultVolume}
-                  onChange={(e) => onUpdate("music", { defaultVolume: Number(e.target.value) })}
-                />
-              </label>
-
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={settings.music.autoplay}
-                  onChange={(e) => onUpdate("music", { autoplay: e.target.checked })}
-                  className="accent-primary"
-                />
-                <span className="kos-body text-xs">Autoplay on boot</span>
-              </label>
-
-              <label className="flex flex-col gap-1.5">
-                <span className="kos-label">Skip Seconds: {settings.music.skipSeconds}s</span>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    min={1}
-                    max={30}
-                    className="accent-primary flex-1"
-                    value={settings.music.skipSeconds}
-                    onChange={(e) => onUpdate("music", { skipSeconds: Number(e.target.value) })}
-                  />
-                  <input
-                    type="number"
-                    min={1}
-                    max={30}
-                    className="kos-button px-3 py-2 text-xs w-20"
-                    value={settings.music.skipSeconds}
-                    onChange={(e) => onUpdate("music", { skipSeconds: Number(e.target.value) })}
-                  />
-                </div>
-              </label>
-            </>
-          )}
-
-          {widgetKey === "focus" && (
-            <>
-              <label className="flex flex-col gap-1.5">
-                <span className="kos-label">Work Duration (min)</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={120}
-                  className="kos-button px-3 py-2 text-xs w-20"
-                  value={settings.focus.workMinutes}
-                  onChange={(e) => onUpdate("focus", { workMinutes: Number(e.target.value) })}
-                />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className="kos-label">Break Duration (min)</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={30}
-                  className="kos-button px-3 py-2 text-xs w-20"
-                  value={settings.focus.breakMinutes}
-                  onChange={(e) => onUpdate("focus", { breakMinutes: Number(e.target.value) })}
-                />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className="kos-label">Rounds</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={10}
-                  className="kos-button px-3 py-2 text-xs w-20"
-                  value={settings.focus.rounds}
-                  onChange={(e) => onUpdate("focus", { rounds: Number(e.target.value) })}
-                />
-              </label>
-            </>
+          {widgetKey !== "news" && (
+            <p className="kos-mono text-[10px] text-muted-foreground">
+              No changes here. (News settings got upgraded.)
+            </p>
           )}
         </div>
       </DialogContent>
