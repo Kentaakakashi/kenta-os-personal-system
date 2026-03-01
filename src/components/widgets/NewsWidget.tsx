@@ -154,4 +154,49 @@ const NewsWidget = () => {
         {loading && items.length === 0 && (
           <>
             {Array.from({ length: count }).map((_, i) => (
-              <div key={i} className="flex items-start gap-
+              <div key={i} className="flex items-start gap-2.5 rounded-button p-2 bg-primary/5 animate-pulse">
+                <div className="mt-0.5 h-6 w-6 rounded-button bg-primary/10" />
+                <div className="flex-1">
+                  <div className="h-3 w-5/6 rounded bg-primary/10" />
+                  <div className="mt-2 h-2 w-1/3 rounded bg-primary/10" />
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+
+        {!loading && !error && items.length === 0 && (
+          <p className="kos-mono text-[10px] text-muted-foreground">
+            No results. Try fewer tags or different topics in settings.
+          </p>
+        )}
+
+        {items.map((item, i) => (
+          <a
+            key={i}
+            href={item.url}
+            target="_blank"
+            rel="noreferrer"
+            className="group flex items-start gap-2.5 rounded-button p-2 transition-colors hover:bg-primary/5 cursor-pointer"
+          >
+            <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-button bg-primary/10">
+              <Newspaper size={12} className="text-primary" />
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <p className="kos-body text-xs font-medium leading-snug line-clamp-2">{item.title}</p>
+              <p className="kos-mono text-[10px] mt-0.5">{item.source.name}</p>
+            </div>
+
+            <ExternalLink
+              size={10}
+              className="mt-1 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+            />
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default NewsWidget;
