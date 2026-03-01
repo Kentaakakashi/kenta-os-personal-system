@@ -120,7 +120,7 @@ const Index = () => {
                   </div>
 
                   <div className="mt-3 kos-mono text-[10px] text-muted-foreground/60">
-                    Tip: later we’ll move PIN validation to server for real security.
+                    Tip: Its your role number.
                   </div>
                 </motion.div>
               </motion.div>
