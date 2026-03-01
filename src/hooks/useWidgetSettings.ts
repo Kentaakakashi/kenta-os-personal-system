@@ -2,21 +2,45 @@ import { useState, useCallback, useEffect } from "react";
 import { getActiveOS, storageKeys } from "@/lib/profileKeys";
 import { writeProfilePartial } from "@/lib/profileDb";
 
+export type NewsPresetKey =
+  | "AI"
+  | "Tech"
+  | "World"
+  | "Business"
+  | "Science"
+  | "Education"
+  | "Sports"
+  | "Gaming"
+  | "Health"
+  | "Entertainment";
+
 export interface WidgetSettings {
   weather: { unit: "celsius" | "fahrenheit"; location: string };
-  news: { sources: string[]; count: number };
+  news: {
+    count: number;
+    presets: NewsPresetKey[]; // quick topic buttons
+    tags: string[]; // custom keywords (user typed)
+    language: "en" | "hi";
+  };
   music: { defaultVolume: number; autoplay: boolean; skipSeconds: number };
   focus: { workMinutes: number; breakMinutes: number; rounds: number };
 }
 
-const DEFAULT_SETTINGS: WidgetSettings = {
-  weather: { unit: "celsius", location: "Tokyo" },
-  news: { sources: ["TechFlow", "DevWeekly", "WorldPulse"], count: 3 },
-  music: { defaultVolume: 75, autoplay: false, skipSeconds: 5 },
-  focus: { workMinutes: 25, breakMinutes: 5, rounds: 4 },
-};
+function defaultsFor(os: "kenta" | "lemon"): WidgetSettings {
+  return {
+    weather: { unit: "celsius", location: "Tokyo" },
+    news:
+      os === "lemon"
+        ? { count: 3, presets: ["Entertainment", "Health"], tags: [], language: "en" }
+        : { count: 3, presets: ["Tech", "AI"], tags: [], language: "en" },
+    music: { defaultVolume: 75, autoplay: false, skipSeconds: 5 },
+    focus: { workMinutes: 25, breakMinutes: 5, rounds: 4 },
+  };
+}
 
 function loadSettings(os: "kenta" | "lemon") {
+  const DEFAULT_SETTINGS = defaultsFor(os);
+
   try {
     const stored = localStorage.getItem(storageKeys.widgetSettings(os));
     if (stored) {
@@ -24,10 +48,14 @@ function loadSettings(os: "kenta" | "lemon") {
       return {
         ...DEFAULT_SETTINGS,
         ...parsed,
+        weather: { ...DEFAULT_SETTINGS.weather, ...(parsed.weather || {}) },
+        news: { ...DEFAULT_SETTINGS.news, ...(parsed.news || {}) },
         music: { ...DEFAULT_SETTINGS.music, ...(parsed.music || {}) },
-      };
+        focus: { ...DEFAULT_SETTINGS.focus, ...(parsed.focus || {}) },
+      } as WidgetSettings;
     }
   } catch {}
+
   return DEFAULT_SETTINGS;
 }
 
@@ -56,7 +84,7 @@ export function useWidgetSettings() {
   const updateSettings = useCallback(
     async <K extends keyof WidgetSettings>(widget: K, update: Partial<WidgetSettings[K]>) => {
       setSettings((prev) => {
-        const next = { ...prev, [widget]: { ...prev[widget], ...update } };
+        const next = { ...prev, [widget]: { ...prev[widget], ...update } } as WidgetSettings;
         localStorage.setItem(storageKeys.widgetSettings(os), JSON.stringify(next));
         writeProfilePartial(os, { widgetSettings: next });
         return next;
