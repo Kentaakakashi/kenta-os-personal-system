@@ -40,9 +40,9 @@ export default function OSChooser(props: { onChoose: (os: OSKey) => void }) {
                   onClick={() => props.onChoose("kenta")}
                 >
                   <div className="kos-label">Kenta OS</div>
-                  <div className="kos-heading text-lg mt-1">Jarvis Mode</div>
+                  <div className="kos-heading text-lg mt-1">Tech Savvy Mode</div>
                   <div className="kos-body text-sm mt-1 opacity-80">
-                    Tactical, neon, mission-control vibes.
+                    Changes to be made soon MEHHHHH
                   </div>
                 </button>
 
@@ -52,15 +52,15 @@ export default function OSChooser(props: { onChoose: (os: OSKey) => void }) {
                   onClick={() => props.onChoose("lemon")}
                 >
                   <div className="kos-label">Lemon OS</div>
-                  <div className="kos-heading text-lg mt-1">Soft Mode</div>
+                  <div className="kos-heading text-lg mt-1">Pattootie Mode</div>
                   <div className="kos-body text-sm mt-1 opacity-80">
-                    Cozy, lofi, warm calm dashboard.
+                    Also changes to be made.
                   </div>
                 </button>
               </div>
 
               <p className="relative z-10 kos-mono text-[10px] text-muted-foreground/60 mt-6 text-center">
-                You can add a “Switch OS” button later.
+                Ill uhm add a “Switch OS” button later.
               </p>
             </div>
           </motion.div>
