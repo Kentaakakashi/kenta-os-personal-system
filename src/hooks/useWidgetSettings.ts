@@ -8,19 +8,19 @@ export type NewsPresetKey =
   | "World"
   | "Business"
   | "Science"
-  | "Education"
   | "Sports"
   | "Gaming"
   | "Health"
-  | "Entertainment";
+  | "Entertainment"
+  | "Education"
+  | "TamilNadu";
 
 export interface WidgetSettings {
   weather: { unit: "celsius" | "fahrenheit"; location: string };
   news: {
     count: number;
-    presets: NewsPresetKey[]; // quick topic buttons
-    tags: string[]; // custom keywords (user typed)
-    language: "en" | "hi";
+    presets: NewsPresetKey[];
+    tags: string[];
   };
   music: { defaultVolume: number; autoplay: boolean; skipSeconds: number };
   focus: { workMinutes: number; breakMinutes: number; rounds: number };
@@ -31,8 +31,8 @@ function defaultsFor(os: "kenta" | "lemon"): WidgetSettings {
     weather: { unit: "celsius", location: "Tokyo" },
     news:
       os === "lemon"
-        ? { count: 3, presets: ["Entertainment", "Health"], tags: [], language: "en" }
-        : { count: 3, presets: ["Tech", "AI"], tags: [], language: "en" },
+        ? { count: 4, presets: ["TamilNadu", "Education"], tags: ["exam", "school", "college"] }
+        : { count: 4, presets: ["Tech", "AI"], tags: [] },
     music: { defaultVolume: 75, autoplay: false, skipSeconds: 5 },
     focus: { workMinutes: 25, breakMinutes: 5, rounds: 4 },
   };
