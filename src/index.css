@@ -365,3 +365,102 @@
   from { opacity: 0; transform: translateY(6px); filter: blur(4px); }
   to { opacity: 1; transform: translateY(0); filter: blur(0); }
 }
+
+/* ==========================
+   Weather Widget Atmosphere
+   (pure visuals; no layout changes)
+   ========================== */
+
+#weatherWidget .weather-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  border-radius: inherit;
+}
+
+/* Sunny: soft golden glow from one edge */
+#weatherWidget.weather-sunny .weather-overlay {
+  background:
+    radial-gradient(circle at 85% 18%, rgba(255, 200, 90, 0.30), transparent 55%),
+    radial-gradient(circle at 20% 85%, rgba(255, 255, 255, 0.10), transparent 55%);
+}
+
+/* Cloudy: slow moving light band */
+#weatherWidget.weather-cloudy .weather-overlay {
+  background:
+    linear-gradient(90deg,
+      rgba(255,255,255,0.06),
+      transparent 40%,
+      rgba(255,255,255,0.05)
+    );
+  animation: kentaWeatherWind 6s ease-in-out infinite;
+  filter: blur(0.2px);
+}
+
+/* Windy: stronger flowing streaks */
+#weatherWidget.weather-windy .weather-overlay {
+  background:
+    linear-gradient(90deg,
+      rgba(255,255,255,0.08),
+      transparent 35%,
+      rgba(255,255,255,0.07)
+    );
+  animation: kentaWeatherWind 3.8s ease-in-out infinite;
+}
+
+@keyframes kentaWeatherWind {
+  0% { transform: translateX(-18%); opacity: 0.75; }
+  50% { transform: translateX(18%); opacity: 1; }
+  100% { transform: translateX(-18%); opacity: 0.75; }
+}
+
+/* Rain: subtle diagonal falling lines */
+#weatherWidget.weather-rain .weather-overlay {
+  background-image:
+    repeating-linear-gradient(
+      115deg,
+      rgba(255,255,255,0.07) 0px,
+      rgba(255,255,255,0.07) 1px,
+      transparent 1px,
+      transparent 7px
+    );
+  animation: kentaWeatherRain 0.55s linear infinite;
+  opacity: 0.55;
+}
+
+@keyframes kentaWeatherRain {
+  from { background-position: 0 0; }
+  to { background-position: 0 14px; }
+}
+
+/* Fog: drifting haze */
+#weatherWidget.weather-fog .weather-overlay {
+  background:
+    radial-gradient(circle at 30% 40%, rgba(255,255,255,0.12), transparent 60%),
+    radial-gradient(circle at 70% 65%, rgba(255,255,255,0.10), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+  animation: kentaWeatherFog 8s ease-in-out infinite;
+  opacity: 0.75;
+}
+
+@keyframes kentaWeatherFog {
+  0% { transform: translateX(-2%) translateY(0%); }
+  50% { transform: translateX(2%) translateY(1%); }
+  100% { transform: translateX(-2%) translateY(0%); }
+}
+
+/* Storm: faint pulse flash */
+#weatherWidget.weather-storm .weather-overlay {
+  background:
+    radial-gradient(circle at 60% 30%, rgba(255,255,255,0.10), transparent 55%),
+    rgba(255,255,255,0.03);
+  animation: kentaWeatherStorm 2.8s infinite;
+  opacity: 0.7;
+}
+
+@keyframes kentaWeatherStorm {
+  0%, 88%, 100% { opacity: 0.25; }
+  90% { opacity: 0.9; }
+  92% { opacity: 0.35; }
+}
