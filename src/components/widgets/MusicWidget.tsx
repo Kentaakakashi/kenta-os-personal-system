@@ -86,7 +86,6 @@ async function getAverageColorFromImage(url: string): Promise<{ r: number; g: nu
       b = 0,
       count = 0;
 
-    // sample pixels, skip transparent-ish
     for (let i = 0; i < data.length; i += 4 * 6) {
       const a = data[i + 3];
       if (a < 40) continue;
@@ -123,7 +122,7 @@ const MusicWidget = () => {
   const [title, setTitle] = useState("Loading...");
   const [channel, setChannel] = useState("");
 
-  // Search UI
+  // Search
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchItem[]>([]);
   const [searching, setSearching] = useState(false);
@@ -133,12 +132,12 @@ const MusicWidget = () => {
   const [link, setLink] = useState("");
   const [linkErr, setLinkErr] = useState<string | null>(null);
 
-  // Dynamic theme from thumbnail
+  // Dynamic glow
   const [glow, setGlow] = useState<{ a: string; b: string } | null>(null);
 
   const thumbUrl = useMemo(() => `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`, [videoId]);
 
-  // Load saved music state
+  // Load saved state
   useEffect(() => {
     const load = async () => {
       const profile = await fetchProfile(os);
@@ -149,14 +148,13 @@ const MusicWidget = () => {
     load();
   }, [os]);
 
-  // Try compute glow colors whenever thumbnail changes
+  // Glow from thumbnail
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const avg = await getAverageColorFromImage(thumbUrl);
       if (cancelled || !avg) return;
 
-      // create two colors: one bright-ish and one darker
       const a = `rgba(${avg.r}, ${avg.g}, ${avg.b}, 0.35)`;
       const b = `rgba(${Math.floor(avg.r * 0.55)}, ${Math.floor(avg.g * 0.55)}, ${Math.floor(avg.b * 0.55)}, 0.25)`;
       setGlow({ a, b });
@@ -205,13 +203,13 @@ const MusicWidget = () => {
           setDuration(d);
           setProgress(0);
 
-          // apply volume
+          // volume
           try {
-            event.target.setVolume?.(clamp(settings.music.defaultVolume, 0, 100));
+            event.target.setVolume?.(clamp(Number((settings as any)?.music?.defaultVolume ?? 75), 0, 100));
           } catch {}
 
-          // autoplay if enabled
-          if (settings.music.autoplay) {
+          // autoplay
+          if (Boolean((settings as any)?.music?.autoplay)) {
             try {
               event.target.playVideo?.();
             } catch {}
@@ -222,7 +220,6 @@ const MusicWidget = () => {
           if (state === window.YT.PlayerState.PLAYING) setIsPlaying(true);
           else setIsPlaying(false);
 
-          // refresh metadata
           try {
             const data = event.target.getVideoData?.() || {};
             if (data?.title) setTitle(data.title);
@@ -235,7 +232,7 @@ const MusicWidget = () => {
     });
   };
 
-  // If video changes, load it
+  // Load selected video into player
   useEffect(() => {
     if (!playerRef.current?.loadVideoById) return;
     playerRef.current.loadVideoById(videoId);
@@ -275,7 +272,7 @@ const MusicWidget = () => {
     setQueue(nextQueue);
     setVideoId(id);
 
-    // close search UI by clearing it (no extra design buttons needed)
+    // close search dropdown automatically
     setQuery("");
     setResults([]);
     setSearchErr(null);
@@ -323,7 +320,6 @@ const MusicWidget = () => {
     setProgress((target / total) * 100);
   };
 
-  // Drag / scrub handler
   const handleScrubAtClientX = (clientX: number) => {
     const el = progressBarRef.current;
     if (!el) return;
@@ -332,22 +328,20 @@ const MusicWidget = () => {
     seekToPercent(pct);
   };
 
-  const onPointerDownBar = (e: React.PointerEvent) => {
+  const onPointerDownBar = (e: any) => {
     draggingRef.current = true;
-    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    e.currentTarget?.setPointerCapture?.(e.pointerId);
     handleScrubAtClientX(e.clientX);
   };
-
-  const onPointerMoveBar = (e: React.PointerEvent) => {
+  const onPointerMoveBar = (e: any) => {
     if (!draggingRef.current) return;
     handleScrubAtClientX(e.clientX);
   };
-
   const onPointerUpBar = () => {
     draggingRef.current = false;
   };
 
-  // --- Search ---
+  // Search
   useEffect(() => {
     const q = query.trim();
     if (!q) {
@@ -415,11 +409,11 @@ const MusicWidget = () => {
     setLink("");
   };
 
-  const skipSeconds = clamp(Number(settings.music.skipSeconds || 5), 1, 30);
+  const skipSeconds = clamp(Number((settings as any)?.music?.skipSeconds ?? 5), 1, 30);
 
   return (
     <div id="musicWidget" className="kos-surface p-4 relative overflow-hidden">
-      {/* Dynamic glow overlay (does not change your base layout/classes) */}
+      {/* dynamic glow overlay */}
       {glow && (
         <div
           className="absolute inset-0 pointer-events-none"
@@ -434,7 +428,7 @@ const MusicWidget = () => {
       <div className="relative">
         <p className="kos-label mb-3">Now Playing</p>
 
-        {/* Search row */}
+        {/* Search */}
         <div className="mb-3">
           <div className="flex items-center gap-2">
             <div className="kos-surface !bg-muted/20 !border-muted/20 px-2 py-2 rounded-button flex items-center gap-2 w-full">
@@ -527,7 +521,6 @@ const MusicWidget = () => {
               backgroundPosition: "center",
             }}
           >
-            {/* subtle overlay so thumbnail looks “OS-ish” */}
             <div className="absolute inset-0 bg-black/25" />
             <Volume2 size={18} className="text-primary relative" />
           </div>
@@ -537,7 +530,7 @@ const MusicWidget = () => {
           </div>
         </div>
 
-        {/* Progress bar (draggable + wavy fill) */}
+        {/* Progress (draggable + wavy) */}
         <div className="mb-3">
           <div
             ref={progressBarRef}
@@ -551,10 +544,8 @@ const MusicWidget = () => {
               className="h-full rounded-full bg-primary transition-[width] duration-150 relative overflow-hidden"
               style={{ width: `${progress}%` }}
             >
-              {/* wave overlay */}
               <div className="absolute inset-0 opacity-70">
                 <svg viewBox="0 0 120 10" preserveAspectRatio="none" className="w-full h-full">
-                  <path fill="rgba(0,0,0,0.0)" />
                   <path
                     fill="rgba(255,255,255,0.18)"
                     d="M0,6 C10,2 20,10 30,6 C40,2 50,10 60,6 C70,2 80,10 90,6 C100,2 110,10 120,6 L120,10 L0,10 Z"
@@ -583,7 +574,7 @@ const MusicWidget = () => {
           </div>
         </div>
 
-        {/* Controls + skip seconds */}
+        {/* Controls + skip */}
         <div className="flex items-center justify-center gap-3">
           <button className="kos-icon-button !w-8 !h-8" onClick={playPrev} aria-label="Previous">
             <SkipBack size={14} />
@@ -602,4 +593,47 @@ const MusicWidget = () => {
             onClick={togglePlay}
             aria-label={isPlaying ? "Pause" : "Play"}
           >
-            {isPlaying ? <Pause size={16} className="te
+            {isPlaying ? <Pause size={16} className="text-primary" /> : <Play size={16} className="text-primary ml-0.5" />}
+          </button>
+
+          <button
+            className="kos-icon-button !w-8 !h-8"
+            onClick={() => seekBy(skipSeconds)}
+            aria-label={`Forward ${skipSeconds}s`}
+          >
+            <FastForward size={14} />
+          </button>
+
+          <button className="kos-icon-button !w-8 !h-8" onClick={playNext} aria-label="Next">
+            <SkipForward size={14} />
+              </button>
+
+          <button
+            className="kos-icon-button !w-10 !h-10 !bg-primary/10 !border-primary/20"
+            onClick={togglePlay}
+            aria-label={isPlaying ? "Pause" : "Play"}
+          >
+            {isPlaying ? <Pause size={16} className="text-primary" /> : <Play size={16} className="text-primary ml-0.5" />}
+          </button>
+
+          <button
+            className="kos-icon-button !w-8 !h-8"
+            onClick={() => seekBy(skipSeconds)}
+            aria-label={`Forward ${skipSeconds}s`}
+          >
+            <FastForward size={14} />
+          </button>
+
+          <button className="kos-icon-button !w-8 !h-8" onClick={playNext} aria-label="Next">
+            <SkipForward size={14} />
+          </button>
+        </div>
+
+        {/* Hidden YouTube mount */}
+        <div ref={playerMountRef} />
+      </div>
+    </div>
+  );
+};
+
+export default MusicWidget;
