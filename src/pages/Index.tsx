@@ -7,8 +7,8 @@ import { AnimatePresence, motion } from "framer-motion";
 type OSKey = "kenta" | "lemon";
 
 const PINS: Record<OSKey, string> = {
-  kenta: "1111",
-  lemon: "2222",
+  kenta: "Mwah",
+  lemon: "Mwah",
 };
 
 const Index = () => {
