@@ -65,7 +65,14 @@ const WidgetSettingsModal = ({ open, onClose, widgetKey, settings, onUpdate }: P
                 <input
                   className="kos-button px-3 py-2 text-xs"
                   value={settings.news.sources.join(", ")}
-                  onChange={(e) => onUpdate("news", { sources: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
+                  onChange={(e) =>
+                    onUpdate("news", {
+                      sources: e.target.value
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter(Boolean),
+                    })
+                  }
                 />
               </label>
             </>
@@ -84,6 +91,7 @@ const WidgetSettingsModal = ({ open, onClose, widgetKey, settings, onUpdate }: P
                   onChange={(e) => onUpdate("music", { defaultVolume: Number(e.target.value) })}
                 />
               </label>
+
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
@@ -92,6 +100,28 @@ const WidgetSettingsModal = ({ open, onClose, widgetKey, settings, onUpdate }: P
                   className="accent-primary"
                 />
                 <span className="kos-body text-xs">Autoplay on boot</span>
+              </label>
+
+              <label className="flex flex-col gap-1.5">
+                <span className="kos-label">Skip Seconds: {settings.music.skipSeconds}s</span>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={1}
+                    max={30}
+                    className="accent-primary flex-1"
+                    value={settings.music.skipSeconds}
+                    onChange={(e) => onUpdate("music", { skipSeconds: Number(e.target.value) })}
+                  />
+                  <input
+                    type="number"
+                    min={1}
+                    max={30}
+                    className="kos-button px-3 py-2 text-xs w-20"
+                    value={settings.music.skipSeconds}
+                    onChange={(e) => onUpdate("music", { skipSeconds: Number(e.target.value) })}
+                  />
+                </div>
               </label>
             </>
           )}
