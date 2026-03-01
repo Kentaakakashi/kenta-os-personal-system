@@ -7,361 +7,269 @@
 @layer base {
   /* === GLASS THEME (default) === */
   :root, .theme-glass {
-    --background: 220 20% 97%;
-    --foreground: 220 25% 10%;
-    --card: 0 0% 100%;
-    --card-foreground: 220 25% 10%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 25% 10%;
-    --primary: 215 80% 55%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 220 15% 92%;
-    --secondary-foreground: 220 25% 15%;
-    --muted: 220 15% 94%;
-    --muted-foreground: 220 10% 50%;
-    --accent: 260 60% 60%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 220 15% 88%;
-    --input: 220 15% 88%;
-    --ring: 215 80% 55%;
-    --radius: 1rem;
+    --background: 235 50% 7%;
+    --foreground: 0 0% 98%;
 
-    /* Kenta OS tokens */
-    --kos-bg: 220 20% 95%;
-    --kos-surface: 0 0% 100% / 0.7;
-    --kos-surface-solid: 0 0% 100%;
-    --kos-glow: 215 80% 55%;
-    --kos-glow-secondary: 260 60% 60%;
-    --kos-blur: 20px;
-    --kos-blur-heavy: 40px;
-    --kos-border: 0 0% 100% / 0.5;
-    --kos-shadow: 220 40% 50% / 0.08;
-    --kos-shadow-lg: 220 40% 50% / 0.15;
-    --kos-text-primary: 220 25% 10%;
-    --kos-text-secondary: 220 10% 45%;
-    --kos-text-muted: 220 10% 65%;
-    --kos-radius-widget: 1.25rem;
-    --kos-radius-button: 0.75rem;
-    --kos-animation-speed: 0.3s;
-    --kos-grain-opacity: 0;
-    --kos-font-display: 'Space Grotesk', sans-serif;
-    --kos-font-body: 'Inter', sans-serif;
-    --kos-font-mono: 'JetBrains Mono', monospace;
-    --kos-boot-core-size: 120px;
-    --kos-boot-glow-spread: 60px;
-    --kos-scanline-opacity: 0;
+    --card: 235 45% 10%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 235 45% 10%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 255 89% 75%;
+    --primary-foreground: 235 50% 7%;
+
+    --secondary: 235 30% 20%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 235 25% 18%;
+    --muted-foreground: 0 0% 70%;
+
+    --accent: 235 30% 20%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 100% / 0.08;
+    --input: 0 0% 100% / 0.10;
+    --ring: 255 89% 75%;
+
+    --radius: 1.25rem;
   }
 
   /* === CYBERPUNK THEME === */
   .theme-cyberpunk {
-    --background: 240 15% 5%;
-    --foreground: 180 100% 90%;
-    --card: 240 15% 8%;
-    --card-foreground: 180 100% 90%;
-    --popover: 240 15% 8%;
-    --popover-foreground: 180 100% 90%;
-    --primary: 180 100% 50%;
-    --primary-foreground: 240 15% 5%;
-    --secondary: 240 20% 15%;
-    --secondary-foreground: 180 100% 80%;
-    --muted: 240 15% 12%;
-    --muted-foreground: 180 30% 55%;
-    --accent: 320 100% 60%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 90% 55%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 180 100% 50% / 0.15;
-    --input: 240 20% 15%;
-    --ring: 180 100% 50%;
-    --radius: 0.25rem;
+    --background: 255 50% 4%;
+    --foreground: 0 0% 98%;
 
-    --kos-bg: 240 15% 4%;
-    --kos-surface: 240 20% 10% / 0.8;
-    --kos-surface-solid: 240 20% 10%;
-    --kos-glow: 180 100% 50%;
-    --kos-glow-secondary: 320 100% 60%;
-    --kos-blur: 12px;
-    --kos-blur-heavy: 24px;
-    --kos-border: 180 100% 50% / 0.2;
-    --kos-shadow: 180 100% 50% / 0.1;
-    --kos-shadow-lg: 180 100% 50% / 0.2;
-    --kos-text-primary: 180 100% 90%;
-    --kos-text-secondary: 180 40% 65%;
-    --kos-text-muted: 180 20% 45%;
-    --kos-radius-widget: 0.375rem;
-    --kos-radius-button: 0.25rem;
-    --kos-animation-speed: 0.2s;
-    --kos-grain-opacity: 0;
-    --kos-boot-core-size: 100px;
-    --kos-boot-glow-spread: 80px;
-    --kos-scanline-opacity: 0.03;
+    --card: 255 45% 7%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 255 45% 7%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 180 100% 55%;
+    --primary-foreground: 255 50% 4%;
+
+    --secondary: 255 30% 14%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 255 25% 12%;
+    --muted-foreground: 0 0% 70%;
+
+    --accent: 300 100% 55%;
+    --accent-foreground: 255 50% 4%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 100% / 0.10;
+    --input: 0 0% 100% / 0.12;
+    --ring: 180 100% 55%;
+
+    --radius: 1.25rem;
   }
 
   /* === LOFI THEME === */
   .theme-lofi {
-    --background: 35 30% 92%;
-    --foreground: 25 20% 15%;
-    --card: 35 25% 96%;
-    --card-foreground: 25 20% 15%;
-    --popover: 35 25% 96%;
-    --popover-foreground: 25 20% 15%;
-    --primary: 25 60% 45%;
-    --primary-foreground: 35 30% 96%;
-    --secondary: 35 20% 88%;
-    --secondary-foreground: 25 20% 20%;
-    --muted: 35 15% 90%;
-    --muted-foreground: 25 10% 50%;
-    --accent: 15 70% 55%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 60% 50%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 30 15% 82%;
-    --input: 30 15% 82%;
-    --ring: 25 60% 45%;
-    --radius: 1.5rem;
+    --background: 30 30% 8%;
+    --foreground: 0 0% 98%;
 
-    --kos-bg: 35 30% 90%;
-    --kos-surface: 35 25% 96% / 0.9;
-    --kos-surface-solid: 35 25% 96%;
-    --kos-glow: 25 60% 45%;
-    --kos-glow-secondary: 15 70% 55%;
-    --kos-blur: 8px;
-    --kos-blur-heavy: 16px;
-    --kos-border: 30 15% 75% / 0.5;
-    --kos-shadow: 25 30% 40% / 0.08;
-    --kos-shadow-lg: 25 30% 40% / 0.12;
-    --kos-text-primary: 25 20% 15%;
-    --kos-text-secondary: 25 10% 40%;
-    --kos-text-muted: 25 8% 55%;
-    --kos-radius-widget: 1.5rem;
-    --kos-radius-button: 1rem;
-    --kos-animation-speed: 0.5s;
-    --kos-grain-opacity: 0.04;
-    --kos-boot-core-size: 100px;
-    --kos-boot-glow-spread: 40px;
-    --kos-scanline-opacity: 0;
+    --card: 30 25% 12%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 30 25% 12%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 35 90% 70%;
+    --primary-foreground: 30 30% 8%;
+
+    --secondary: 30 18% 18%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 30 15% 16%;
+    --muted-foreground: 0 0% 70%;
+
+    --accent: 20 60% 60%;
+    --accent-foreground: 30 30% 8%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 100% / 0.08;
+    --input: 0 0% 100% / 0.10;
+    --ring: 35 90% 70%;
+
+    --radius: 1.25rem;
   }
 
   /* === TACTICAL THEME === */
   .theme-tactical {
-    --background: 160 8% 10%;
-    --foreground: 80 10% 85%;
-    --card: 160 8% 13%;
-    --card-foreground: 80 10% 85%;
-    --popover: 160 8% 13%;
-    --popover-foreground: 80 10% 85%;
-    --primary: 80 50% 45%;
-    --primary-foreground: 160 8% 5%;
-    --secondary: 160 6% 18%;
-    --secondary-foreground: 80 10% 80%;
-    --muted: 160 5% 16%;
-    --muted-foreground: 80 5% 50%;
-    --accent: 45 80% 50%;
-    --accent-foreground: 160 8% 5%;
-    --destructive: 0 70% 50%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 160 6% 22%;
-    --input: 160 6% 22%;
-    --ring: 80 50% 45%;
-    --radius: 0.375rem;
+    --background: 220 15% 6%;
+    --foreground: 0 0% 98%;
 
-    --kos-bg: 160 8% 8%;
-    --kos-surface: 160 8% 14% / 0.9;
-    --kos-surface-solid: 160 8% 14%;
-    --kos-glow: 80 50% 45%;
-    --kos-glow-secondary: 45 80% 50%;
-    --kos-blur: 4px;
-    --kos-blur-heavy: 8px;
-    --kos-border: 80 50% 45% / 0.15;
-    --kos-shadow: 80 50% 30% / 0.08;
-    --kos-shadow-lg: 80 50% 30% / 0.15;
-    --kos-text-primary: 80 10% 85%;
-    --kos-text-secondary: 80 5% 60%;
-    --kos-text-muted: 80 3% 45%;
-    --kos-radius-widget: 0.5rem;
-    --kos-radius-button: 0.375rem;
-    --kos-animation-speed: 0.15s;
-    --kos-grain-opacity: 0.02;
-    --kos-boot-core-size: 80px;
-    --kos-boot-glow-spread: 40px;
-    --kos-scanline-opacity: 0.02;
+    --card: 220 12% 10%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 220 12% 10%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 200 70% 60%;
+    --primary-foreground: 220 15% 6%;
+
+    --secondary: 220 10% 18%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 220 8% 16%;
+    --muted-foreground: 0 0% 70%;
+
+    --accent: 220 10% 18%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 100% / 0.08;
+    --input: 0 0% 100% / 0.10;
+    --ring: 200 70% 60%;
+
+    --radius: 1.25rem;
   }
+}
 
+@layer base {
   * {
     @apply border-border;
   }
 
   body {
     @apply bg-background text-foreground;
-    font-family: var(--kos-font-body);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
   }
 }
 
-/* ========== KENTA OS GLOBAL STYLES ========== */
-
 @layer components {
-  /* Surface / Widget Card */
   .kos-surface {
-    background: hsl(var(--kos-surface));
-    backdrop-filter: blur(var(--kos-blur));
-    -webkit-backdrop-filter: blur(var(--kos-blur));
-    border: 1px solid hsl(var(--kos-border));
-    border-radius: var(--kos-radius-widget);
-    box-shadow: 0 4px 24px hsl(var(--kos-shadow)),
-                0 1px 3px hsl(var(--kos-shadow));
-    transition: transform var(--kos-animation-speed) ease,
-                box-shadow var(--kos-animation-speed) ease;
-  }
-
-  .kos-surface:hover {
-    box-shadow: 0 8px 32px hsl(var(--kos-shadow-lg)),
-                0 2px 6px hsl(var(--kos-shadow));
-  }
-
-  .kos-surface:active {
-    transform: scale(0.98);
-  }
-
-  /* Typography */
-  .kos-heading {
-    font-family: var(--kos-font-display);
-    color: hsl(var(--kos-text-primary));
-    font-weight: 600;
-    letter-spacing: -0.02em;
-  }
-
-  .kos-body {
-    font-family: var(--kos-font-body);
-    color: hsl(var(--kos-text-secondary));
-  }
-
-  .kos-mono {
-    font-family: var(--kos-font-mono);
-    color: hsl(var(--kos-text-muted));
+    @apply rounded-widget border border-white/10 bg-white/5 backdrop-blur-md;
   }
 
   .kos-label {
-    font-family: var(--kos-font-body);
-    color: hsl(var(--kos-text-muted));
-    font-size: 0.7rem;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    @apply text-xs font-medium uppercase tracking-wide text-muted-foreground;
   }
 
-  /* Glow effects */
-  .kos-glow {
-    box-shadow: 0 0 var(--kos-boot-glow-spread) hsl(var(--kos-glow) / 0.3),
-                0 0 calc(var(--kos-boot-glow-spread) * 2) hsl(var(--kos-glow) / 0.1);
+  .kos-heading {
+    @apply font-semibold;
   }
 
-  .kos-glow-text {
-    text-shadow: 0 0 20px hsl(var(--kos-glow) / 0.5),
-                 0 0 40px hsl(var(--kos-glow) / 0.2);
+  .kos-body {
+    @apply text-muted-foreground;
   }
 
-  /* Button */
-  .kos-button {
-    background: hsl(var(--kos-surface));
-    backdrop-filter: blur(var(--kos-blur));
-    border: 1px solid hsl(var(--kos-border));
-    border-radius: var(--kos-radius-button);
-    color: hsl(var(--kos-text-primary));
-    font-family: var(--kos-font-body);
-    font-weight: 500;
-    transition: all var(--kos-animation-speed) ease;
-    cursor: pointer;
+  .kos-mono {
+    @apply font-mono text-muted-foreground;
   }
 
-  .kos-button:hover {
-    background: hsl(var(--primary) / 0.1);
-    border-color: hsl(var(--primary) / 0.3);
+  .rounded-widget {
+    border-radius: var(--radius);
   }
+}
 
-  .kos-button:active {
-    transform: scale(0.95);
-  }
+/* ==========================
+   Weather Widget Atmosphere
+   (pure visuals; no layout changes)
+   ========================== */
 
-  /* Scanline overlay */
-  .kos-scanlines::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      hsl(0 0% 0% / var(--kos-scanline-opacity)) 2px,
-      hsl(0 0% 0% / var(--kos-scanline-opacity)) 4px
+#weatherWidget .weather-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  border-radius: inherit;
+  opacity: 1;
+}
+
+/* Sunny: soft golden glow from one edge */
+#weatherWidget.weather-sunny .weather-overlay {
+  background:
+    radial-gradient(circle at 85% 18%, rgba(255, 200, 90, 0.30), transparent 55%),
+    radial-gradient(circle at 20% 85%, rgba(255, 255, 255, 0.10), transparent 55%);
+}
+
+/* Cloudy: slow moving light band */
+#weatherWidget.weather-cloudy .weather-overlay {
+  background:
+    linear-gradient(90deg,
+      rgba(255,255,255,0.06),
+      transparent 40%,
+      rgba(255,255,255,0.05)
     );
-    pointer-events: none;
-    z-index: 9999;
-  }
-
-  /* Grain overlay */
-  .kos-grain::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    opacity: var(--kos-grain-opacity);
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-    background-repeat: repeat;
-    pointer-events: none;
-    z-index: 9998;
-  }
-
-  /* Icon button */
-  .kos-icon-button {
-    @apply flex items-center justify-center;
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: var(--kos-radius-button);
-    background: hsl(var(--kos-surface));
-    backdrop-filter: blur(var(--kos-blur));
-    border: 1px solid hsl(var(--kos-border));
-    color: hsl(var(--kos-text-secondary));
-    transition: all var(--kos-animation-speed) ease;
-    cursor: pointer;
-  }
-
-  .kos-icon-button:hover {
-    color: hsl(var(--primary));
-    border-color: hsl(var(--primary) / 0.3);
-    background: hsl(var(--primary) / 0.08);
-  }
-
-  .kos-icon-button:active {
-    transform: scale(0.9);
-  }
+  animation: kentaWeatherWind 6s ease-in-out infinite;
+  filter: blur(0.2px);
 }
 
-/* ========== BOOT SCREEN ANIMATIONS ========== */
-
-@keyframes kos-core-pulse {
-  0%, 100% { transform: scale(1); opacity: 0.8; }
-  50% { transform: scale(1.05); opacity: 1; }
+/* Windy: stronger flowing streaks */
+#weatherWidget.weather-windy .weather-overlay {
+  background:
+    linear-gradient(90deg,
+      rgba(255,255,255,0.08),
+      transparent 35%,
+      rgba(255,255,255,0.07)
+    );
+  animation: kentaWeatherWind 3.8s ease-in-out infinite;
 }
 
-@keyframes kos-core-ring-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+@keyframes kentaWeatherWind {
+  0% { transform: translateX(-18%); opacity: 0.75; }
+  50% { transform: translateX(18%); opacity: 1; }
+  100% { transform: translateX(-18%); opacity: 0.75; }
 }
 
-@keyframes kos-core-ring-spin-reverse {
-  from { transform: rotate(360deg); }
-  to { transform: rotate(0deg); }
+/* Rain: subtle diagonal falling lines */
+#weatherWidget.weather-rain .weather-overlay {
+  background-image:
+    repeating-linear-gradient(
+      115deg,
+      rgba(255,255,255,0.07) 0px,
+      rgba(255,255,255,0.07) 1px,
+      transparent 1px,
+      transparent 7px
+    );
+  animation: kentaWeatherRain 0.55s linear infinite;
+  opacity: 0.55;
 }
 
-@keyframes kos-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+@keyframes kentaWeatherRain {
+  from { background-position: 0 0; }
+  to { background-position: 0 14px; }
 }
 
-@keyframes kos-text-reveal {
-  from { opacity: 0; transform: translateY(6px); filter: blur(4px); }
-  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+/* Fog: drifting haze */
+#weatherWidget.weather-fog .weather-overlay {
+  background:
+    radial-gradient(circle at 30% 40%, rgba(255,255,255,0.12), transparent 60%),
+    radial-gradient(circle at 70% 65%, rgba(255,255,255,0.10), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+  animation: kentaWeatherFog 8s ease-in-out infinite;
+  opacity: 0.75;
 }
+
+@keyframes kentaWeatherFog {
+  0% { transform: translateX(-2%) translateY(0%); }
+  50% { transform: translateX(2%) translateY(1%); }
+  100% { transform: translateX(-2%) translateY(0%); }
+}
+
+/* Storm: faint pulse flash */
+#weatherWidget.weather-storm .weather-overlay {
+  background:
+    radial-gradient(circle at 60% 30%, rgba(255,255,255,0.10), transparent 55%),
+    rgba(255,255,255,0.03);
+  animation: kentaWeatherStorm 2.8s infinite;
+  opacity: 0.7;
+}
+
+@keyframes kentaWeatherStorm {
+  0%, 88%, 100% { opacity: 0.25; }
+  90% { opacity: 0.9; }
+  92% { opacity: 0.35; }
+       }
