@@ -4,12 +4,12 @@ import {
   Pause,
   SkipForward,
   SkipBack,
-  Volume2,
   Search,
   Link2,
   X,
   Rewind,
   FastForward,
+  Volume2,
 } from "lucide-react";
 import { getActiveOS } from "@/lib/profileKeys";
 import { writeProfilePartial, fetchProfile } from "@/lib/profileDb";
@@ -31,6 +31,10 @@ type SearchItem = {
   channel: string;
   thumb: string;
 };
+
+function clamp(n: number, a: number, b: number) {
+  return Math.max(a, Math.min(b, n));
+}
 
 function extractYouTubeId(input: string): string | null {
   try {
@@ -55,10 +59,6 @@ function extractYouTubeId(input: string): string | null {
   return null;
 }
 
-function clamp(n: number, a: number, b: number) {
-  return Math.max(a, Math.min(b, n));
-}
-
 async function getAverageColorFromImage(url: string): Promise<{ r: number; g: number; b: number } | null> {
   try {
     const img = new Image();
@@ -81,11 +81,13 @@ async function getAverageColorFromImage(url: string): Promise<{ r: number; g: nu
     ctx.drawImage(img, 0, 0, w, h);
 
     const data = ctx.getImageData(0, 0, w, h).data;
+
     let r = 0,
       g = 0,
       b = 0,
       count = 0;
 
+    // sample pixels (skip for speed)
     for (let i = 0; i < data.length; i += 4 * 6) {
       const a = data[i + 3];
       if (a < 40) continue;
@@ -112,11 +114,15 @@ const MusicWidget = () => {
   const progressBarRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
 
+  const rafRef = useRef<number | null>(null);
+  const beatRef = useRef(0);
+  const beatVelRef = useRef(0);
+
   const [videoId, setVideoId] = useState<string>(DEFAULT_VIDEO);
   const [queue, setQueue] = useState<string[]>([DEFAULT_VIDEO]);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  const [progress, setProgress] = useState(0);
+  const [progressPct, setProgressPct] = useState(0);
   const [duration, setDuration] = useState(0);
 
   const [title, setTitle] = useState("Loading...");
@@ -128,14 +134,27 @@ const MusicWidget = () => {
   const [searching, setSearching] = useState(false);
   const [searchErr, setSearchErr] = useState<string | null>(null);
 
-  // Paste-link
+  // Paste link
   const [link, setLink] = useState("");
   const [linkErr, setLinkErr] = useState<string | null>(null);
 
-  // Dynamic glow
-  const [glow, setGlow] = useState<{ a: string; b: string } | null>(null);
+  // Color-derived glow
+  const [glow, setGlow] = useState<{ a: string; b: string; c: string } | null>(null);
 
   const thumbUrl = useMemo(() => `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`, [videoId]);
+
+  const skipSeconds = clamp(Number((settings as any)?.music?.skipSeconds ?? 5), 1, 30);
+
+  const formatTime = (seconds: number) => {
+    if (!seconds || seconds <= 0) return "0:00";
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
+
+  const persistMusic = async (id: string, nextQueue: string[]) => {
+    await writeProfilePartial(os, { music: { videoId: id, queue: nextQueue } } as any);
+  };
 
   // Load saved state
   useEffect(() => {
@@ -148,23 +167,26 @@ const MusicWidget = () => {
     load();
   }, [os]);
 
-  // Glow from thumbnail
+  // Color from thumbnail (drives widget glow)
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const avg = await getAverageColorFromImage(thumbUrl);
       if (cancelled || !avg) return;
 
-      const a = `rgba(${avg.r}, ${avg.g}, ${avg.b}, 0.35)`;
-      const b = `rgba(${Math.floor(avg.r * 0.55)}, ${Math.floor(avg.g * 0.55)}, ${Math.floor(avg.b * 0.55)}, 0.25)`;
-      setGlow({ a, b });
+      // build 3 tones so it feels deep
+      const a = `rgba(${avg.r}, ${avg.g}, ${avg.b}, 0.34)`;
+      const b = `rgba(${Math.floor(avg.r * 0.55)}, ${Math.floor(avg.g * 0.55)}, ${Math.floor(avg.b * 0.55)}, 0.28)`;
+      const c = `rgba(${Math.min(255, avg.r + 40)}, ${Math.min(255, avg.g + 30)}, ${Math.min(255, avg.b + 20)}, 0.18)`;
+
+      setGlow({ a, b, c });
     })();
     return () => {
       cancelled = true;
     };
   }, [thumbUrl]);
 
-  // Load YouTube API
+  // YouTube API load
   useEffect(() => {
     const ensure = () => {
       if (window.YT?.Player) {
@@ -193,22 +215,25 @@ const MusicWidget = () => {
       height: "0",
       width: "0",
       videoId,
-      playerVars: { playsinline: 1 },
+      playerVars: {
+        playsinline: 1,
+        // NOTE: background playback still not guaranteed on mobile browsers.
+      },
       events: {
         onReady: (event: any) => {
           const data = event.target.getVideoData?.() || {};
           setTitle(data.title || "Unknown Track");
           setChannel(data.author || "");
+
           const d = Number(event.target.getDuration?.() || 0);
           setDuration(d);
-          setProgress(0);
+          setProgressPct(0);
 
-          // volume
+          // default volume (safe)
           try {
             event.target.setVolume?.(clamp(Number((settings as any)?.music?.defaultVolume ?? 75), 0, 100));
           } catch {}
 
-          // autoplay
           if (Boolean((settings as any)?.music?.autoplay)) {
             try {
               event.target.playVideo?.();
@@ -217,8 +242,8 @@ const MusicWidget = () => {
         },
         onStateChange: (event: any) => {
           const state = event.data;
-          if (state === window.YT.PlayerState.PLAYING) setIsPlaying(true);
-          else setIsPlaying(false);
+          const playing = state === window.YT.PlayerState.PLAYING;
+          setIsPlaying(playing);
 
           try {
             const data = event.target.getVideoData?.() || {};
@@ -243,39 +268,32 @@ const MusicWidget = () => {
   useEffect(() => {
     const interval = window.setInterval(() => {
       if (!playerRef.current) return;
-      if (!isPlaying) return;
 
-      const current = Number(playerRef.current.getCurrentTime?.() || 0);
       const total = Number(playerRef.current.getDuration?.() || 0);
       setDuration(total);
 
-      if (total > 0) setProgress((current / total) * 100);
-      else setProgress(0);
-    }, 700);
+      if (!draggingRef.current) {
+        const current = Number(playerRef.current.getCurrentTime?.() || 0);
+        if (total > 0) setProgressPct((current / total) * 100);
+        else setProgressPct(0);
+      }
+    }, 500);
 
     return () => window.clearInterval(interval);
-  }, [isPlaying]);
-
-  const formatTime = (seconds: number) => {
-    if (!seconds || seconds <= 0) return "0:00";
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
-    return `${m}:${s.toString().padStart(2, "0")}`;
-  };
-
-  const persistMusic = async (id: string, nextQueue: string[]) => {
-    await writeProfilePartial(os, { music: { videoId: id, queue: nextQueue } } as any);
-  };
+  }, []);
 
   const loadVideo = async (id: string) => {
     const nextQueue = queue.includes(id) ? queue : [...queue, id].slice(-25);
     setQueue(nextQueue);
     setVideoId(id);
 
-    // close search dropdown automatically
+    // auto-close search UI
     setQuery("");
     setResults([]);
     setSearchErr(null);
+
+    // clear link UI
+    setLink("");
     setLinkErr(null);
 
     await persistMusic(id, nextQueue);
@@ -306,7 +324,7 @@ const MusicWidget = () => {
 
     const target = clamp((pct / 100) * total, 0, total);
     playerRef.current.seekTo?.(target, true);
-    setProgress((target / total) * 100);
+    setProgressPct((target / total) * 100);
   };
 
   const seekBy = (delta: number) => {
@@ -317,7 +335,7 @@ const MusicWidget = () => {
     const cur = Number(playerRef.current.getCurrentTime?.() || 0);
     const target = clamp(cur + delta, 0, total);
     playerRef.current.seekTo?.(target, true);
-    setProgress((target / total) * 100);
+    setProgressPct((target / total) * 100);
   };
 
   const handleScrubAtClientX = (clientX: number) => {
@@ -325,6 +343,7 @@ const MusicWidget = () => {
     if (!el) return;
     const rect = el.getBoundingClientRect();
     const pct = clamp(((clientX - rect.left) / rect.width) * 100, 0, 100);
+    setProgressPct(pct);
     seekToPercent(pct);
   };
 
@@ -333,15 +352,17 @@ const MusicWidget = () => {
     e.currentTarget?.setPointerCapture?.(e.pointerId);
     handleScrubAtClientX(e.clientX);
   };
+
   const onPointerMoveBar = (e: any) => {
     if (!draggingRef.current) return;
     handleScrubAtClientX(e.clientX);
   };
+
   const onPointerUpBar = () => {
     draggingRef.current = false;
   };
 
-  // Search
+  // Search (YouTube Data API)
   useEffect(() => {
     const q = query.trim();
     if (!q) {
@@ -389,7 +410,7 @@ const MusicWidget = () => {
       } finally {
         if (!cancelled) setSearching(false);
       }
-    }, 450);
+    }, 420);
 
     return () => {
       cancelled = true;
@@ -404,64 +425,157 @@ const MusicWidget = () => {
       return;
     }
     setLinkErr(null);
-    setResults([]);
     await loadVideo(id);
-    setLink("");
   };
 
-  const skipSeconds = clamp(Number((settings as any)?.music?.skipSeconds ?? 5), 1, 30);
+  /**
+   * “Ferrofluid-ish” animated gradient
+   * Not true audio beat sync (YouTube iframe doesn’t expose audio data),
+   * but we animate pulses while playing so it feels alive.
+   */
+  useEffect(() => {
+    const root = document.getElementById("musicWidget");
+    if (!root) return;
+
+    const tick = () => {
+      // physics-ish wobble
+      const t = performance.now() / 1000;
+
+      // target amplitude: higher when playing, lower when paused
+      const target = isPlaying ? 1 : 0;
+
+      // spring towards target
+      const beat = beatRef.current;
+      let vel = beatVelRef.current;
+
+      const stiffness = 0.08;
+      const damping = 0.88;
+
+      vel += (target - beat) * stiffness;
+
+      // “pulse” whenever progress moves (fake beat-ish)
+      // small spikes while playing
+      if (isPlaying) {
+        const pulse = (Math.sin(t * 4.2) + Math.sin(t * 2.1 + 1.4)) * 0.08;
+        vel += pulse;
+      }
+
+      vel *= damping;
+      const nextBeat = clamp(beat + vel, 0, 1.35);
+
+      beatRef.current = nextBeat;
+      beatVelRef.current = vel;
+
+      // drive CSS vars
+      root.style.setProperty("--mf-beat", String(nextBeat));
+      root.style.setProperty("--mf-t", String(t));
+
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    // run always, but the value collapses when paused
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    };
+  }, [isPlaying]);
+
+  const currentTime = duration > 0 ? (progressPct / 100) * duration : 0;
 
   return (
     <div id="musicWidget" className="kos-surface p-4 relative overflow-hidden">
-      {/* dynamic glow overlay */}
+      {/* Local styles so you don’t touch index.css */}
+      <style>{`
+        #musicWidget { --mf-beat: 0; --mf-t: 0; }
+        .mf-ferro {
+          position: absolute;
+          inset: -40px;
+          pointer-events: none;
+          filter: blur(22px) saturate(1.25);
+          opacity: 0.95;
+          transform: translateZ(0);
+        }
+
+        .mf-ferro::before,
+        .mf-ferro::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background:
+            radial-gradient(50% 60% at calc(20% + 12% * sin(var(--mf-t))) calc(15% + 12% * cos(var(--mf-t))),
+              var(--mf-a), transparent 60%),
+            radial-gradient(55% 70% at calc(78% + 10% * cos(var(--mf-t))) calc(40% + 10% * sin(var(--mf-t))),
+              var(--mf-b), transparent 62%),
+            radial-gradient(40% 50% at calc(55% + 18% * sin(var(--mf-t) * 0.8)) calc(82% + 12% * cos(var(--mf-t) * 0.9)),
+              var(--mf-c), transparent 62%);
+          transform: scale(calc(1 + 0.10 * var(--mf-beat))) rotate(calc(1deg * sin(var(--mf-t))));
+          transition: opacity 300ms ease;
+        }
+
+        .mf-ferro::after {
+          filter: blur(14px);
+          opacity: 0.7;
+          mix-blend-mode: screen;
+          transform: scale(calc(1.02 + 0.14 * var(--mf-beat))) rotate(calc(-1deg * cos(var(--mf-t))));
+        }
+
+        .mf-vignette {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background: radial-gradient(120% 120% at 50% 30%, rgba(0,0,0,0.00), rgba(0,0,0,0.32));
+        }
+      `}</style>
+
+      {/* Animated ferro fluid glow */}
       {glow && (
         <div
-          className="absolute inset-0 pointer-events-none"
+          className="mf-ferro"
           style={{
-            background: `radial-gradient(120% 120% at 20% 10%, ${glow.a}, transparent 55%), radial-gradient(120% 120% at 90% 30%, ${glow.b}, transparent 60%)`,
-            filter: "blur(18px)",
-            opacity: 0.9,
+            // CSS vars for colors
+            // @ts-ignore
+            "--mf-a": glow.a,
+            // @ts-ignore
+            "--mf-b": glow.b,
+            // @ts-ignore
+            "--mf-c": glow.c,
           }}
         />
       )}
+      <div className="mf-vignette" />
 
       <div className="relative">
         <p className="kos-label mb-3">Now Playing</p>
 
         {/* Search */}
         <div className="mb-3">
-          <div className="flex items-center gap-2">
-            <div className="kos-surface !bg-muted/20 !border-muted/20 px-2 py-2 rounded-button flex items-center gap-2 w-full">
-              <Search size={14} className="text-muted-foreground/70" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={YT_KEY ? "Search YouTube…" : "Search disabled (no API key)"}
-                className="bg-transparent outline-none w-full kos-mono text-xs text-foreground placeholder:text-muted-foreground/60"
-              />
-              {query ? (
-                <button
-                  className="kos-icon-button !w-7 !h-7"
-                  onClick={() => {
-                    setQuery("");
-                    setResults([]);
-                  }}
-                  aria-label="Clear"
-                >
-                  <X size={12} />
-                </button>
-              ) : null}
-            </div>
+          <div className="kos-surface !bg-muted/20 !border-muted/20 px-2 py-2 rounded-button flex items-center gap-2 w-full">
+            <Search size={14} className="text-muted-foreground/70" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={YT_KEY ? "Search YouTube…" : "Search disabled (no API key)"}
+              className="bg-transparent outline-none w-full kos-mono text-xs text-foreground placeholder:text-muted-foreground/60"
+            />
+            {query ? (
+              <button
+                className="kos-icon-button !w-7 !h-7"
+                onClick={() => {
+                  setQuery("");
+                  setResults([]);
+                }}
+                aria-label="Clear search"
+              >
+                <X size={12} />
+              </button>
+            ) : null}
           </div>
 
           {query.trim() && (
             <div className="mt-2 kos-surface !bg-muted/10 !border-muted/20 p-2">
               {searching && <div className="kos-body text-xs opacity-70 px-2 py-2">Searching…</div>}
-
-              {!searching && searchErr && (
-                <div className="kos-body text-xs text-red-400 px-2 py-2">{searchErr}</div>
-              )}
-
+              {!searching && searchErr && <div className="kos-body text-xs text-red-400 px-2 py-2">{searchErr}</div>}
               {!searching && !searchErr && results.length === 0 && (
                 <div className="kos-body text-xs opacity-70 px-2 py-2">No results.</div>
               )}
@@ -476,9 +590,7 @@ const MusicWidget = () => {
                     >
                       <div className="flex items-center gap-2">
                         <div className="h-9 w-14 shrink-0 rounded-button overflow-hidden bg-muted/30">
-                          {r.thumb ? (
-                            <img src={r.thumb} alt="" className="h-full w-full object-cover" loading="lazy" />
-                          ) : null}
+                          {r.thumb ? <img src={r.thumb} alt="" className="h-full w-full object-cover" loading="lazy" /> : null}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="kos-heading text-xs truncate">{r.title}</div>
@@ -507,14 +619,13 @@ const MusicWidget = () => {
               Play
             </button>
           </div>
-
           {linkErr && <div className="kos-body text-xs text-red-400 mt-1">{linkErr}</div>}
         </div>
 
         {/* Track display */}
         <div className="flex items-center gap-3 mb-3">
           <div
-            className="h-12 w-12 shrink-0 rounded-button bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center overflow-hidden relative"
+            className="h-12 w-12 shrink-0 rounded-button flex items-center justify-center overflow-hidden relative"
             style={{
               backgroundImage: `url(${thumbUrl})`,
               backgroundSize: "cover",
@@ -523,14 +634,13 @@ const MusicWidget = () => {
           >
             <div className="absolute inset-0 bg-black/25" />
             <Volume2 size={18} className="text-primary relative" />
-          </div>
-          <div className="min-w-0 flex-1">
+          </div>          <div className="min-w-0 flex-1">
             <p className="kos-heading text-sm truncate">{title}</p>
             <p className="kos-body text-xs truncate">{channel}</p>
           </div>
         </div>
 
-        {/* Progress (draggable + wavy) */}
+        {/* Progress (draggable) */}
         <div className="mb-3">
           <div
             ref={progressBarRef}
@@ -541,10 +651,11 @@ const MusicWidget = () => {
             onPointerCancel={onPointerUpBar}
           >
             <div
-              className="h-full rounded-full bg-primary transition-[width] duration-150 relative overflow-hidden"
-              style={{ width: `${progress}%` }}
+              className="h-full rounded-full bg-primary transition-[width] duration-100 relative overflow-hidden"
+              style={{ width: `${progressPct}%` }}
             >
-              <div className="absolute inset-0 opacity-70">
+              {/* subtle wave shimmer inside progress */}
+              <div className="absolute inset-0 opacity-65">
                 <svg viewBox="0 0 120 10" preserveAspectRatio="none" className="w-full h-full">
                   <path
                     fill="rgba(255,255,255,0.18)"
@@ -567,24 +678,18 @@ const MusicWidget = () => {
           </div>
 
           <div className="flex justify-between mt-1">
-            <span className="kos-mono text-[10px]">
-              {duration > 0 ? formatTime((progress / 100) * duration) : "LIVE"}
-            </span>
+            <span className="kos-mono text-[10px]">{duration > 0 ? formatTime(currentTime) : "LIVE"}</span>
             <span className="kos-mono text-[10px]">{duration > 0 ? formatTime(duration) : ""}</span>
           </div>
         </div>
 
-        {/* Controls + skip */}
+        {/* Controls (ONE ROW ONLY — no duplicates) */}
         <div className="flex items-center justify-center gap-3">
           <button className="kos-icon-button !w-8 !h-8" onClick={playPrev} aria-label="Previous">
             <SkipBack size={14} />
           </button>
 
-          <button
-            className="kos-icon-button !w-8 !h-8"
-            onClick={() => seekBy(-skipSeconds)}
-            aria-label={`Back ${skipSeconds}s`}
-          >
+          <button className="kos-icon-button !w-8 !h-8" onClick={() => seekBy(-skipSeconds)} aria-label={`Back ${skipSeconds}s`}>
             <Rewind size={14} />
           </button>
 
@@ -593,34 +698,14 @@ const MusicWidget = () => {
             onClick={togglePlay}
             aria-label={isPlaying ? "Pause" : "Play"}
           >
-            {isPlaying ? <Pause size={16} className="text-primary" /> : <Play size={16} className="text-primary ml-0.5" />}
+            {isPlaying ? (
+              <Pause size={16} className="text-primary" />
+            ) : (
+              <Play size={16} className="text-primary ml-0.5" />
+            )}
           </button>
 
-          <button
-            className="kos-icon-button !w-8 !h-8"
-            onClick={() => seekBy(skipSeconds)}
-            aria-label={`Forward ${skipSeconds}s`}
-          >
-            <FastForward size={14} />
-          </button>
-
-          <button className="kos-icon-button !w-8 !h-8" onClick={playNext} aria-label="Next">
-            <SkipForward size={14} />
-              </button>
-
-          <button
-            className="kos-icon-button !w-10 !h-10 !bg-primary/10 !border-primary/20"
-            onClick={togglePlay}
-            aria-label={isPlaying ? "Pause" : "Play"}
-          >
-            {isPlaying ? <Pause size={16} className="text-primary" /> : <Play size={16} className="text-primary ml-0.5" />}
-          </button>
-
-          <button
-            className="kos-icon-button !w-8 !h-8"
-            onClick={() => seekBy(skipSeconds)}
-            aria-label={`Forward ${skipSeconds}s`}
-          >
+          <button className="kos-icon-button !w-8 !h-8" onClick={() => seekBy(skipSeconds)} aria-label={`Forward ${skipSeconds}s`}>
             <FastForward size={14} />
           </button>
 
