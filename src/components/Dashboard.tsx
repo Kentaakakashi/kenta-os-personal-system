@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   DndContext,
@@ -9,11 +9,7 @@ import {
   useSensors,
   DragEndEvent,
 } from "@dnd-kit/core";
-import {
-  SortableContext,
-  arrayMove,
-  rectSortingStrategy,
-} from "@dnd-kit/sortable";
+import { SortableContext, arrayMove, rectSortingStrategy } from "@dnd-kit/sortable";
 import ThemeSwitcher from "./ThemeSwitcher";
 import WeatherWidget from "./widgets/WeatherWidget";
 import NewsWidget from "./widgets/NewsWidget";
@@ -34,7 +30,10 @@ const stagger = {
   show: { transition: { staggerChildren: 0.08 } },
 };
 
-const WIDGET_MAP: Record<string, { component: React.FC; colSpan?: boolean; settingsKey?: keyof WidgetSettings }> = {
+const WIDGET_MAP: Record<
+  string,
+  { component: React.FC; colSpan?: boolean; settingsKey?: keyof WidgetSettings }
+> = {
   weather: { component: WeatherWidget, settingsKey: "weather" },
   music: { component: MusicWidget, settingsKey: "music" },
   news: { component: NewsWidget, colSpan: true, settingsKey: "news" },
@@ -42,12 +41,53 @@ const WIDGET_MAP: Record<string, { component: React.FC; colSpan?: boolean; setti
   quickActions: { component: QuickActions },
 };
 
+function getGreetingText() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+}
+
+function formatTime() {
+  return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatDate() {
+  return new Date().toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+}
+
 const Dashboard = () => {
   const { order, updateOrder } = useWidgetOrder();
   const { settings, updateSettings } = useWidgetSettings();
   const themesHook = useCustomThemes();
-  const [settingsModal, setSettingsModal] = useState<{ open: boolean; widget: keyof WidgetSettings | null }>({ open: false, widget: null });
+  const [settingsModal, setSettingsModal] = useState<{ open: boolean; widget: keyof WidgetSettings | null }>({
+    open: false,
+    widget: null,
+  });
   const [customThemesOpen, setCustomThemesOpen] = useState(false);
+
+  const activeOS = useMemo(() => {
+    const v = localStorage.getItem("kos_active_os");
+    return v === "lemon" ? "lemon" : "kenta";
+  }, []);
+
+  const displayName = activeOS === "lemon" ? "Lemon" : "Kenta";
+
+  const [greeting, setGreeting] = useState(() => `${getGreetingText()}, ${displayName}`);
+  const [time, setTime] = useState(() => formatTime());
+  const [date, setDate] = useState(() => formatDate());
+
+  useEffect(() => {
+    const tick = () => {
+      setGreeting(`${getGreetingText()}, ${displayName}`);
+      setTime(formatTime());
+      setDate(formatDate());
+    };
+
+    tick();
+    const interval = window.setInterval(tick, 30_000);
+    return () => window.clearInterval(interval);
+  }, [displayName]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -89,13 +129,15 @@ const Dashboard = () => {
         <div className="flex items-start justify-between">
           <div className="ml-12 sm:ml-0">
             <h1 id="greetingText" className="kos-heading text-xl">
-              Good morning, Kenta
+              {greeting}
             </h1>
             <div className="flex items-center gap-3 mt-1">
-              <span id="timeText" className="kos-mono text-sm">09:41</span>
+              <span id="timeText" className="kos-mono text-sm">
+                {time}
+              </span>
               <span className="text-muted-foreground/30">•</span>
               <span id="dateText" className="kos-mono text-xs text-muted-foreground">
-                Sat, Mar 1
+                {date}
               </span>
             </div>
           </div>
@@ -122,9 +164,7 @@ const Dashboard = () => {
                   id={id}
                   colSpan={widget.colSpan}
                   onSettings={
-                    widget.settingsKey
-                      ? () => setSettingsModal({ open: true, widget: widget.settingsKey! })
-                      : undefined
+                    widget.settingsKey ? () => setSettingsModal({ open: true, widget: widget.settingsKey! }) : undefined
                   }
                 >
                   <Comp />
@@ -148,11 +188,7 @@ const Dashboard = () => {
       />
 
       {/* Custom Theme Creator */}
-      <CustomThemeCreator
-        open={customThemesOpen}
-        onClose={() => setCustomThemesOpen(false)}
-        themesHook={themesHook}
-      />
+      <CustomThemeCreator open={customThemesOpen} onClose={() => setCustomThemesOpen(false)} themesHook={themesHook} />
     </div>
   );
 };
