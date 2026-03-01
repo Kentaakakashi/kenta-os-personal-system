@@ -3,10 +3,16 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   server: {
-    host: "0.0.0.0",
-    port: 3000,
+    host: true,
+    port: Number(process.env.PORT) || 3000,
     strictPort: true,
-    allowedHosts: ["all"],
+
+    // ✅ allow your exact Replit host + all replit subdomains
+    allowedHosts: [
+      "c107407e-494f-49a9-8608-8611bdcff91f-00-1dj8f92ryzeuv.worf.replit.dev",
+      ".replit.dev",
+      ".repl.co"
+    ],
   },
   plugins: [react()],
 });
