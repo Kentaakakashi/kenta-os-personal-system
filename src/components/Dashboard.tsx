@@ -24,6 +24,7 @@ import AppSidebar from "./AppSidebar";
 import { useWidgetOrder } from "@/hooks/useWidgetOrder";
 import { useWidgetSettings, WidgetSettings } from "@/hooks/useWidgetSettings";
 import { useCustomThemes } from "@/hooks/useCustomThemes";
+import { useProfileSync } from "@/hooks/useProfileSync"; // ✅ added
 
 const stagger = {
   hidden: {},
@@ -57,6 +58,13 @@ function formatDate() {
 }
 
 const Dashboard = () => {
+  const activeOS = useMemo(() => {
+    const v = localStorage.getItem("kos_active_os");
+    return v === "lemon" ? "lemon" : "kenta";
+  }, []);
+
+  useProfileSync(activeOS); // ✅ added (starts Firestore -> localStorage sync)
+
   const { order, updateOrder } = useWidgetOrder();
   const { settings, updateSettings } = useWidgetSettings();
   const themesHook = useCustomThemes();
@@ -65,11 +73,6 @@ const Dashboard = () => {
     widget: null,
   });
   const [customThemesOpen, setCustomThemesOpen] = useState(false);
-
-  const activeOS = useMemo(() => {
-    const v = localStorage.getItem("kos_active_os");
-    return v === "lemon" ? "lemon" : "kenta";
-  }, []);
 
   const displayName = activeOS === "lemon" ? "Lemon" : "Kenta";
 
