@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const BOOT_LINES = [
+type OSKey = "kenta" | "lemon";
+
+const KENTA_BOOT_LINES = [
   "Initializing Kenta OS…",
   "Loading modules…",
   "Syncing environment…",
@@ -11,38 +13,64 @@ const BOOT_LINES = [
   "Systems online.",
 ];
 
+const LEMON_BOOT_LINES = [
+  "Initializing Lemon OS…",
+  "Warming up the vibe…",
+  "Syncing environment…",
+  "Preparing cozy modules…",
+  "Calibrating mood mesh…",
+  "Connecting soft channels…",
+  "Systems online.",
+];
+
 interface BootScreenProps {
   onComplete: () => void;
+  os: OSKey;
 }
 
 // Generate random particles
 function useParticles(count: number) {
-  return useMemo(() =>
-    Array.from({ length: count }, (_, i) => ({
-      id: i,
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      size: Math.random() * 3 + 1,
-      duration: Math.random() * 4 + 3,
-      delay: Math.random() * 2,
-    })), [count]);
+  return useMemo(
+    () =>
+      Array.from({ length: count }, (_, i) => ({
+        id: i,
+        x: Math.random() * 100,
+        y: Math.random() * 100,
+        size: Math.random() * 3 + 1,
+        duration: Math.random() * 4 + 3,
+        delay: Math.random() * 2,
+      })),
+    [count]
+  );
 }
 
-const BootScreen = ({ onComplete }: BootScreenProps) => {
+const BootScreen = ({ onComplete, os }: BootScreenProps) => {
   const [visibleLines, setVisibleLines] = useState(0);
   const [exiting, setExiting] = useState(false);
   const [bgPhase, setBgPhase] = useState(0);
   const particles = useParticles(30);
 
+  const BOOT_LINES = useMemo(() => {
+    return os === "lemon" ? LEMON_BOOT_LINES : KENTA_BOOT_LINES;
+  }, [os]);
+
   useEffect(() => {
     const timers: NodeJS.Timeout[] = [];
+
+    // Reset when OS changes (so it boots clean)
+    setVisibleLines(0);
+    setExiting(false);
+    setBgPhase(0);
+
     BOOT_LINES.forEach((_, i) => {
       timers.push(setTimeout(() => setVisibleLines(i + 1), 500 + i * 400));
     });
+
     // Background phase shifts
     timers.push(setTimeout(() => setBgPhase(1), 800));
     timers.push(setTimeout(() => setBgPhase(2), 1600));
     timers.push(setTimeout(() => setBgPhase(3), 2400));
+
     // Auto-complete
     timers.push(
       setTimeout(() => {
@@ -50,8 +78,9 @@ const BootScreen = ({ onComplete }: BootScreenProps) => {
         setTimeout(onComplete, 600);
       }, 500 + BOOT_LINES.length * 400 + 300)
     );
+
     return () => timers.forEach(clearTimeout);
-  }, [onComplete]);
+  }, [onComplete, BOOT_LINES]);
 
   const handleSkip = () => {
     setExiting(true);
@@ -129,7 +158,10 @@ const BootScreen = ({ onComplete }: BootScreenProps) => {
                 boxShadow: "0 0 30px hsl(var(--kos-glow) / 0.1)",
               }}
               animate={{ rotate: 360, scale: [1, 1.05, 1] }}
-              transition={{ rotate: { duration: 8, repeat: Infinity, ease: "linear" }, scale: { duration: 3, repeat: Infinity, ease: "easeInOut" } }}
+              transition={{
+                rotate: { duration: 8, repeat: Infinity, ease: "linear" },
+                scale: { duration: 3, repeat: Infinity, ease: "easeInOut" },
+              }}
             />
             {/* Middle ring */}
             <motion.div
@@ -158,7 +190,10 @@ const BootScreen = ({ onComplete }: BootScreenProps) => {
                 border: "1px dashed hsl(var(--kos-glow-secondary) / 0.2)",
               }}
               animate={{ rotate: 180, scale: [1, 0.95, 1] }}
-              transition={{ rotate: { duration: 10, repeat: Infinity, ease: "linear" }, scale: { duration: 2, repeat: Infinity, ease: "easeInOut" } }}
+              transition={{
+                rotate: { duration: 10, repeat: Infinity, ease: "linear" },
+                scale: { duration: 2, repeat: Infinity, ease: "easeInOut" },
+              }}
             />
             {/* Inner core with enhanced glow */}
             <motion.div
@@ -177,7 +212,12 @@ const BootScreen = ({ onComplete }: BootScreenProps) => {
               transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
             />
             {/* Container sizing */}
-            <div style={{ width: "var(--kos-boot-core-size)", height: "var(--kos-boot-core-size)" }} />
+            <div
+              style={{
+                width: "var(--kos-boot-core-size)",
+                height: "var(--kos-boot-core-size)",
+              }}
+            />
           </div>
 
           {/* Boot text lines */}
@@ -214,7 +254,10 @@ const BootScreen = ({ onComplete }: BootScreenProps) => {
               className="h-full bg-primary rounded-full"
               initial={{ width: "0%" }}
               animate={{ width: "100%" }}
-              transition={{ duration: 2.5 + BOOT_LINES.length * 0.3, ease: "easeInOut" }}
+              transition={{
+                duration: 2.5 + BOOT_LINES.length * 0.3,
+                ease: "easeInOut",
+              }}
             />
           </motion.div>
 
