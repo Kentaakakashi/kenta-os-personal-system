@@ -1,6 +1,6 @@
-import { useState, useCallback } from "react";
-
-const STORAGE_KEY = "kos-widget-settings";
+import { useState, useCallback, useEffect } from "react";
+import { getActiveOS, storageKeys } from "@/lib/profileKeys";
+import { writeProfilePartial } from "@/lib/profileDb";
 
 export interface WidgetSettings {
   weather: { unit: "celsius" | "fahrenheit"; location: string };
@@ -16,27 +16,47 @@ const DEFAULT_SETTINGS: WidgetSettings = {
   focus: { workMinutes: 25, breakMinutes: 5, rounds: 4 },
 };
 
+function loadSettings(os: "kenta" | "lemon") {
+  try {
+    const stored = localStorage.getItem(storageKeys.widgetSettings(os));
+    if (stored) return { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
+  } catch {}
+  return DEFAULT_SETTINGS;
+}
+
 export function useWidgetSettings() {
-  const [settings, setSettings] = useState<WidgetSettings>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) return { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
-    } catch {}
-    return DEFAULT_SETTINGS;
-  });
+  const os = getActiveOS();
+  const [settings, setSettings] = useState<WidgetSettings>(() => loadSettings(os));
+
+  useEffect(() => {
+    const onUpdate = (e: any) => {
+      if (e?.detail?.os !== os) return;
+      setSettings(loadSettings(os));
+    };
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === storageKeys.widgetSettings(os)) setSettings(loadSettings(os));
+    };
+
+    window.addEventListener("kos-profile-update", onUpdate as any);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("kos-profile-update", onUpdate as any);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, [os]);
 
   const updateSettings = useCallback(
-    <K extends keyof WidgetSettings>(widget: K, update: Partial<WidgetSettings[K]>) => {
+    async <K extends keyof WidgetSettings>(widget: K, update: Partial<WidgetSettings[K]>) => {
       setSettings((prev) => {
-        const next = {
-          ...prev,
-          [widget]: { ...prev[widget], ...update },
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        const next = { ...prev, [widget]: { ...prev[widget], ...update } };
+        localStorage.setItem(storageKeys.widgetSettings(os), JSON.stringify(next));
+        // Fire-and-forget write (no await inside setState)
+        writeProfilePartial(os, { widgetSettings: next });
         return next;
       });
     },
-    []
+    [os]
   );
 
   return { settings, updateSettings };
