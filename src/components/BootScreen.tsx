@@ -8,7 +8,7 @@ const KENTA_BOOT_LINES = [
   "Loading modules…",
   "Syncing environment…",
   "Configuring AI core…",
-  "Calibrating neural mesh…",
+  "Sending lemon a kich…",
   "Connecting secure channels…",
   "Systems online.",
 ];
@@ -18,7 +18,7 @@ const LEMON_BOOT_LINES = [
   "Warming up the vibe…",
   "Syncing environment…",
   "Preparing cozy modules…",
-  "Calibrating mood mesh…",
+  "Sending kenta a kich…",
   "Connecting soft channels…",
   "Systems online.",
 ];
