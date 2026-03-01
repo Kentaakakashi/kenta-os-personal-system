@@ -11,15 +11,19 @@ type Article = {
 };
 
 const PRESET_QUERY: Record<string, string> = {
-  AI: '(AI OR "artificial intelligence" OR "machine learning")',
-  Tech: '(technology OR software OR gadgets OR "big tech")',
+  AI: '(AI OR "artificial intelligence" OR "machine learning" OR OpenAI OR Google)',
+  Tech: '(technology OR software OR gadgets OR "big tech" OR android OR apple)',
   World: "(world OR geopolitics OR international OR global)",
-  Business: "(business OR markets OR finance OR economy)",
+  Business: "(business OR markets OR finance OR economy OR startups)",
   Science: "(science OR space OR research)",
   Sports: "(sports OR cricket OR football OR soccer)",
   Gaming: '(gaming OR esports OR "video games")',
   Health: "(health OR medicine OR wellness)",
   Entertainment: "(entertainment OR movies OR music OR celebrities)",
+  Education:
+    '(education OR school OR college OR university OR exam OR "board exam" OR NEET OR JEE OR TNPSC OR syllabus)',
+  TamilNadu:
+    '("Tamil Nadu" OR Tamil OR Chennai OR Coimbatore OR Madurai OR Salem OR Tiruchirappalli OR Tirunelveli)',
 };
 
 function buildQuery(presets: string[], tags: string[]) {
@@ -31,14 +35,12 @@ function buildQuery(presets: string[], tags: string[]) {
 
   const all = [...presetParts, ...tagParts];
 
-  // Default so it never feels empty
   if (all.length === 0) return PRESET_QUERY.Tech;
-
   return all.length === 1 ? all[0] : `(${all.join(" OR ")})`;
 }
 
-function cacheKey(os: string, q: string, lng: string, count: number) {
-  return `kos-news:${os}:${lng}:${count}:${q}`;
+function cacheKey(os: string, q: string, count: number) {
+  return `kos-news:${os}:${count}:${q}`;
 }
 
 const NewsWidget = () => {
@@ -54,25 +56,17 @@ const NewsWidget = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const apiKey = import.meta.env.VITE_NEWS_API_KEY as string | undefined;
-  const count = Math.min(10, Math.max(1, settings.news.count || 3));
-  const language = settings.news.language || "en";
+  const count = Math.min(10, Math.max(1, settings.news.count || 4));
 
   const fetchNews = async (opts?: { force?: boolean }) => {
-    if (!apiKey) {
-      setError("Missing News API key. Add VITE_NEWS_API_KEY in Netlify env / .env.");
-      setItems([]);
-      return;
-    }
-
-    const key = cacheKey(os, q, language, count);
+    const key = cacheKey(os, q, count);
 
     if (!opts?.force) {
       try {
         const cached = sessionStorage.getItem(key);
         if (cached) {
           const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length) {
+          if (Array.isArray(parsed)) {
             setItems(parsed);
             setError(null);
             return;
@@ -85,31 +79,34 @@ const NewsWidget = () => {
     setError(null);
 
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 9000);
+    const timeout = window.setTimeout(() => controller.abort(), 10000);
 
     try {
       const url =
-        "https://newsapi.org/v2/everything" +
+        `/.netlify/functions/news` +
         `?q=${encodeURIComponent(q)}` +
-        `&language=${encodeURIComponent(language)}` +
-        `&pageSize=${encodeURIComponent(String(count))}` +
-        `&sortBy=publishedAt` +
-        `&apiKey=${encodeURIComponent(apiKey)}`;
+        `&count=${encodeURIComponent(String(count))}` +
+        `&os=${encodeURIComponent(os)}`;
 
       const res = await fetch(url, { signal: controller.signal });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json().catch(() => ({}));
 
-      const data = await res.json();
-      const articles = Array.isArray(data?.articles) ? (data.articles as any[]) : [];
-      const normalized: Article[] = articles
-        .filter((a) => a?.title && a?.url)
-        .map((a) => ({
-          title: String(a.title),
-          url: String(a.url),
-          source: { name: String(a?.source?.name || "Unknown") },
-          publishedAt: a?.publishedAt ? String(a.publishedAt) : undefined,
-        }))
-        .slice(0, count);
+      if (!res.ok) {
+        const msg = data?.error || `News error (HTTP ${res.status})`;
+        throw new Error(msg);
+      }
+
+      const normalized: Article[] = Array.isArray(data?.articles)
+        ? data.articles
+            .filter((a: any) => a?.title && a?.url)
+            .map((a: any) => ({
+              title: String(a.title),
+              url: String(a.url),
+              source: { name: String(a?.source?.name || "Unknown") },
+              publishedAt: a?.publishedAt ? String(a.publishedAt) : undefined,
+            }))
+            .slice(0, count)
+        : [];
 
       setItems(normalized);
       try {
@@ -117,7 +114,9 @@ const NewsWidget = () => {
       } catch {}
     } catch (e: any) {
       const msg =
-        e?.name === "AbortError" ? "News request timed out. Try again." : "Couldn’t load news right now.";
+        e?.name === "AbortError"
+          ? "News request timed out. Tap refresh."
+          : (e?.message || "Couldn’t load news right now.");
       setError(msg);
     } finally {
       window.clearTimeout(timeout);
@@ -128,77 +127,31 @@ const NewsWidget = () => {
   useEffect(() => {
     fetchNews();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, language, count, os]);
+  }, [q, count, os]);
 
   return (
     <div id="newsWidget" className="kos-surface p-4">
       <div className="mb-3 flex items-center justify-between">
-        <p className="kos-label">Daily Briefing</p>
-        <button
-          className="kos-button px-2 py-1 text-xs"
-          onClick={() => fetchNews({ force: true })}
-          title="Refresh"
-          aria-label="Refresh news"
-        >
-          <RefreshCcw size={12} className={loading ? "animate-spin" : ""} />
-        </button>
+        <div className="flex items-center gap-2">
+          <p className="kos-label">Daily Briefing</p>
+          <button
+            className="kos-button px-2 py-1 text-xs"
+            onClick={() => fetchNews({ force: true })}
+            title="Refresh"
+            aria-label="Refresh news"
+          >
+            <RefreshCcw size={12} className={loading ? "animate-spin" : ""} />
+          </button>
+        </div>
+
+        {/* intentionally empty right side so your OS controls don’t overlap */}
+        <div />
       </div>
 
       <div className="flex flex-col gap-2.5">
-        {!apiKey && (
-          <p className="kos-mono text-[10px] text-muted-foreground">
-            Add <span className="text-primary">VITE_NEWS_API_KEY</span> to enable live news.
-          </p>
-        )}
-
         {error && <p className="kos-mono text-[10px] text-muted-foreground">{error}</p>}
 
         {loading && items.length === 0 && (
           <>
             {Array.from({ length: count }).map((_, i) => (
-              <div key={i} className="flex items-start gap-2.5 rounded-button p-2 bg-primary/5 animate-pulse">
-                <div className="mt-0.5 h-6 w-6 rounded-button bg-primary/10" />
-                <div className="flex-1">
-                  <div className="h-3 w-5/6 rounded bg-primary/10" />
-                  <div className="mt-2 h-2 w-1/3 rounded bg-primary/10" />
-                </div>
-              </div>
-            ))}
-          </>
-        )}
-
-        {!loading && !error && items.length === 0 && apiKey && (
-          <p className="kos-mono text-[10px] text-muted-foreground">
-            No results. Try fewer tags or different topics in settings.
-          </p>
-        )}
-
-        {items.map((item, i) => (
-          <a
-            key={i}
-            href={item.url}
-            target="_blank"
-            rel="noreferrer"
-            className="group flex items-start gap-2.5 rounded-button p-2 transition-colors hover:bg-primary/5 cursor-pointer"
-          >
-            <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-button bg-primary/10">
-              <Newspaper size={12} className="text-primary" />
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <p className="kos-body text-xs font-medium leading-snug line-clamp-2">{item.title}</p>
-              <p className="kos-mono text-[10px] mt-0.5">{item.source.name}</p>
-            </div>
-
-            <ExternalLink
-              size={10}
-              className="mt-1 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
-            />
-          </a>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-export default NewsWidget;
+              <div key={i} className="flex items-start gap-
