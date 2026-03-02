@@ -1,205 +1,193 @@
-import { useEffect, useMemo, useState } from "react";
-import { RotateCw, Settings } from "lucide-react";
-import { WidgetCard } from "@/components/WidgetCard";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
+import { RefreshCcw, Settings, ExternalLink } from "lucide-react";
+import { useOSTheme } from "@/hooks/useOSTheme";
 import { useWidgetSettings } from "@/hooks/useWidgetSettings";
-import { useOS } from "@/hooks/useOS";
 
 type NewsItem = {
   title: string;
-  source?: string;
-  url?: string;
-  publishedAt?: string;
+  source: string;
+  url: string;
 };
 
 const PRESET_QUERY: Record<string, string> = {
-  TamilNadu:
-    '(Tamil Nadu OR Chennai OR Coimbatore OR Madurai OR "TN Government" OR "Tamil Nadu education")',
+  Tech: '(technology OR tech OR "software" OR "startup" OR gadgets OR apple OR google OR microsoft)',
+  AI: '(AI OR "artificial intelligence" OR "machine learning" OR "OpenAI" OR "ChatGPT" OR "deep learning")',
+  World: '(world OR global OR international OR diplomacy OR "united nations")',
+  India: '(India OR Indian OR "New Delhi" OR "Tamil Nadu" OR Chennai OR "Tamilnadu")',
   Education:
-    '(education OR school OR college OR university OR exam OR syllabus OR "entrance exam" OR "JEE" OR "NEET" OR CBSE OR "state board")',
-  Tech: "(technology OR startups OR gadget OR software OR AI OR cybersecurity)",
-  AI: "(AI OR artificial intelligence OR OpenAI OR Google DeepMind OR LLM)",
-  Business: "(business OR economy OR markets OR finance OR stocks)",
-  Sports: "(sports OR cricket OR football OR olympics)",
-  Entertainment: "(movies OR cinema OR music OR streaming OR celebrity)",
+    '(education OR school OR college OR university OR "exam" OR "board exam" OR "JEE" OR "JEE Main" OR "JEE Advanced" OR NEET OR "admission" OR "results" OR scholarship)',
+  TamilNadu: '("Tamil Nadu" OR Chennai OR Coimbatore OR Madurai OR Salem OR Tiruchirappalli OR Trichy OR "Tamilnadu")',
 };
 
-function cacheKey(os: string, q: string, count: number, page: number) {
-  return `kos-news:${os}:${count}:${page}:${q}`;
-}
+function buildQuery(
+  os: "kenta" | "lemon",
+  presets: string[],
+  tags: string[]
+) {
+  const safePresets = (presets ?? []).filter(Boolean);
+  const safeTags = (tags ?? []).map((t) => t.trim()).filter(Boolean);
 
-function buildQuery(presets: string[], tags: string[]) {
-  const presetParts = (presets || []).map((p) => PRESET_QUERY[p]).filter(Boolean);
-
-  // Custom tags are treated as an OR-group, then AND'ed with presets
-  const tagParts = (tags || [])
-    .map((t) => t.trim())
+  const presetExpr = safePresets
+    .map((p) => PRESET_QUERY[p] ?? p)
     .filter(Boolean)
-    .map((t) => `"${t.replace(/"/g, "")}"`);
+    .map((q) => `(${q})`)
+    .join(" OR ");
 
-  // If user selected multiple preset "topics", treat it as narrowing (AND),
-  // because people usually pick more buttons to get *more specific* news.
-  const presetExpr =
-    presetParts.length === 0
-      ? ""
-      : presetParts.length === 1
-        ? presetParts[0]
-        : presetParts.map((p) => `(${p})`).join(" AND ");
+  const tagExpr = safeTags.map((t) => `("${t}")`).join(" OR ");
 
-  const tagExpr =
-    tagParts.length === 0
-      ? ""
-      : tagParts.length === 1
-        ? tagParts[0]
-        : `(${tagParts.join(" OR ")})`;
+  // If user picked both presets + tags, narrow it with AND so it doesn't turn into random-news soup.
+  let core = "";
+  if (presetExpr && tagExpr) core = `(${presetExpr}) AND (${tagExpr})`;
+  else if (presetExpr) core = presetExpr;
+  else if (tagExpr) core = tagExpr;
 
-  if (!presetExpr && !tagExpr) return PRESET_QUERY.Education; // sensible default
+  if (!core) {
+    // Sensible fallback: Lemon leans education/exams, Kenta leans tech.
+    core = os === "lemon" ? PRESET_QUERY.Education : PRESET_QUERY.Tech;
+  }
 
-  if (presetExpr && tagExpr) return `(${presetExpr}) AND ${tagExpr}`;
-  return presetExpr || tagExpr;
+  // Soft-boost study keywords for Lemon OS without hard-biasing everything.
+  if (os === "lemon") {
+    core = `(${core}) AND (JEE OR "JEE Main" OR "JEE Advanced" OR NEET OR "board exam" OR admission OR result OR scholarship OR education)`;
+  }
+
+  return core;
 }
 
 export default function NewsWidget() {
-  const { os } = useOS();
-  const { settings, openWidgetSettings } = useWidgetSettings(os);
+  const { os } = useOSTheme();
+  const { settings } = useWidgetSettings();
+
   const [items, setItems] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const count = Math.min(10, Math.max(1, settings.news.count || 4));
-  const [page, setPage] = useState(1);
+  const q = useMemo(
+    () => buildQuery(os, settings.news.presets || [], settings.news.tags || []),
+    [os, settings.news.presets, settings.news.tags]
+  );
 
-  const q = useMemo(() => {
-    return buildQuery(settings.news.presets || [], settings.news.tags || []);
-  }, [settings.news.presets, settings.news.tags]);
-
-  async function fetchNews(opts?: { force?: boolean }) {
-    const nextPage = opts?.force ? ((page % 3) + 1) : page;
-    if (opts?.force) setPage(nextPage);
-
-    const key = cacheKey(os, q, count, nextPage);
-
-    try {
+  const fetchNews = useCallback(
+    async (opts?: { force?: boolean }) => {
       setLoading(true);
       setErr(null);
 
-      if (!opts?.force) {
-        const cached = sessionStorage.getItem(key);
-        if (cached) {
-          const parsed = JSON.parse(cached) as { items: NewsItem[]; ts: number };
-          // cache valid for 10 minutes
-          if (Date.now() - parsed.ts < 10 * 60 * 1000) {
-            setItems(parsed.items);
+      const count = settings.news.count || 4;
+      const cacheKey = `pooka_news_${os}_${count}_${q}`;
+
+      try {
+        if (!opts?.force) {
+          const cached = sessionStorage.getItem(cacheKey);
+          if (cached) {
+            setItems(JSON.parse(cached));
             setLoading(false);
             return;
           }
         }
-      }
 
-      // Netlify function endpoint:
-      const url =
-        `/.netlify/functions/news?` +
-        `q=${encodeURIComponent(q)}` +
-        `&pageSize=${encodeURIComponent(String(count))}` +
-        `&os=${encodeURIComponent(os)}` +
-        `&page=${encodeURIComponent(String(nextPage))}` +
-        `&_=${Date.now()}`;
+        const params = new URLSearchParams();
+        params.set("q", q);
+        params.set("count", String(count));
+        params.set("os", os);
 
-      const res = await fetch(url);
-      if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        throw new Error(txt || `Request failed: ${res.status}`);
-      }
+        // Cache-bust on forced refresh so you don’t keep seeing the exact same list.
+        const url = `/.netlify/functions/news?${params.toString()}${
+          opts?.force ? `&t=${Date.now()}` : ""
+        }`;
 
-      const data = (await res.json()) as { items: NewsItem[] };
-      const got = Array.isArray(data.items) ? data.items : [];
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Failed to load news");
 
-      // If query got too strict, don't show an empty widget: show a useful message.
-      if (got.length === 0) {
+        const data = (await res.json()) as { items?: NewsItem[] };
+        const next = data.items ?? [];
+
+        setItems(next);
+        sessionStorage.setItem(cacheKey, JSON.stringify(next));
+      } catch (e: any) {
+        setErr(e?.message ?? "Couldn't load news right now.");
         setItems([]);
-        setErr("No news matched your filters. Try fewer topics/tags.");
-        sessionStorage.removeItem(key);
-        return;
+      } finally {
+        setLoading(false);
       }
-
-      setItems(got);
-      sessionStorage.setItem(key, JSON.stringify({ items: got, ts: Date.now() }));
-    } catch (e: any) {
-      setErr(e?.message || "Couldn't load news right now.");
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
-  }
+    },
+    [os, q, settings.news.count]
+  );
 
   useEffect(() => {
     fetchNews();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [os, q, count]);
+  }, [fetchNews]);
 
   return (
-    <WidgetCard className="relative">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="text-xs tracking-widest opacity-70">DAILY BRIEFING</div>
-
-          {/* Refresh moved here so it doesn't get buried under the widget controls */}
-          <button
-            onClick={() => fetchNews({ force: true })}
-            className="kos-icon-btn"
-            title="Refresh"
-            aria-label="Refresh news"
-            disabled={loading}
-          >
-            <RotateCw size={16} className={loading ? "animate-spin" : ""} />
-          </button>
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      className="kos-widget kos-surface"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="kos-widget-title">DAILY BRIEFING</div>
         </div>
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => openWidgetSettings("news")}
             className="kos-icon-btn"
-            title="Settings"
-            aria-label="News settings"
+            onClick={() => fetchNews({ force: true })}
+            title="Refresh"
           >
+            <RefreshCcw size={16} />
+          </button>
+
+          <button className="kos-icon-btn" title="Settings">
             <Settings size={16} />
+          </button>
+
+          <button className="kos-icon-btn" title="Reorder">
+            <span className="grid grid-cols-2 gap-0.5">
+              <span className="h-1 w-1 rounded-full bg-current opacity-70" />
+              <span className="h-1 w-1 rounded-full bg-current opacity-70" />
+              <span className="h-1 w-1 rounded-full bg-current opacity-70" />
+              <span className="h-1 w-1 rounded-full bg-current opacity-70" />
+            </span>
           </button>
         </div>
       </div>
 
-      {err ? (
-        <div className="text-sm opacity-70">{err}</div>
-      ) : loading && items.length === 0 ? (
-        <div className="text-sm opacity-70">Loading news...</div>
-      ) : items.length === 0 ? (
-        <div className="text-sm opacity-70">Couldn&apos;t load news right now.</div>
-      ) : (
-        <div className="space-y-4">
-          {items.map((n, idx) => (
-            <a
-              key={idx}
-              href={n.url || "#"}
-              target={n.url ? "_blank" : undefined}
-              rel={n.url ? "noreferrer" : undefined}
-              className="block group"
-            >
-              <div className="flex gap-3 items-start">
-                <div className="mt-1">
-                  <div className="kos-news-icon" />
-                </div>
+      <div className="mt-4 space-y-4">
+        {loading && (
+          <div className="kos-muted text-sm">Loading news…</div>
+        )}
 
-                <div className="min-w-0">
-                  <div className="text-sm leading-snug group-hover:underline underline-offset-4">
-                    {n.title}
-                  </div>
-                  {n.source ? (
-                    <div className="text-xs opacity-60 mt-1">{n.source}</div>
-                  ) : null}
-                </div>
+        {!loading && err && (
+          <div className="kos-muted text-sm">{err}</div>
+        )}
+
+        {!loading && !err && items.length === 0 && (
+          <div className="kos-muted text-sm">No news found for these filters.</div>
+        )}
+
+        {!loading &&
+          !err &&
+          items.map((n, idx) => (
+            <a
+              key={`${n.url}_${idx}`}
+              href={n.url}
+              target="_blank"
+              rel="noreferrer"
+              className="group flex items-start gap-3 rounded-xl p-3 transition hover:bg-white/5"
+            >
+              <div className="mt-1 rounded-lg bg-white/5 p-2">
+                <ExternalLink size={14} className="opacity-70 group-hover:opacity-100" />
+              </div>
+
+              <div className="min-w-0">
+                <div className="truncate text-sm font-medium">{n.title}</div>
+                <div className="mt-1 truncate text-xs opacity-60">{n.source}</div>
               </div>
             </a>
           ))}
-        </div>
-      )}
-    </WidgetCard>
+      </div>
+    </motion.div>
   );
 }
