@@ -8,26 +8,30 @@ type Article = {
   url: string;
   source: { name: string };
   publishedAt?: string;
+  description?: string;
 };
 
 const PRESET_QUERY: Record<string, string> = {
-  AI: '(AI OR "artificial intelligence" OR "machine learning" OR OpenAI OR Google)',
-  Tech: '(technology OR software OR gadgets OR "big tech" OR android OR apple)',
-  World: "(world OR geopolitics OR international OR global)",
-  Business: "(business OR markets OR finance OR economy OR startups)",
-  Science: "(science OR space OR research)",
-  Sports: "(sports OR cricket OR football OR soccer)",
-  Gaming: '(gaming OR esports OR "video games")',
-  Health: "(health OR medicine OR wellness)",
-  Entertainment: "(entertainment OR movies OR music OR celebrities)",
+  AI: '(AI OR "artificial intelligence" OR "machine learning")',
+  Tech: '(technology OR gadgets OR software)',
+  World: "(world OR geopolitics)",
+  Business: "(business OR economy OR markets)",
+  Science: "(science OR research OR space)",
+  Sports: "(sports OR cricket OR football)",
+  Gaming: '(gaming OR esports)',
+  Health: "(health OR medicine)",
+  Entertainment: "(entertainment OR movies OR music)",
   Education:
-    '(education OR school OR college OR university OR exam OR "board exam" OR NEET OR JEE OR TNPSC OR syllabus)',
+    '(education OR school OR college OR university OR exam OR NEET OR JEE OR TNPSC OR syllabus)',
   TamilNadu:
-    '("Tamil Nadu" OR Tamil OR Chennai OR Coimbatore OR Madurai OR Salem OR Tiruchirappalli OR Tirunelveli)',
+    '("Tamil Nadu" OR Chennai OR Coimbatore OR Madurai OR Salem OR Tiruchirappalli OR Tirunelveli)',
 };
 
 function buildQuery(presets: string[], tags: string[]) {
-  const presetParts = (presets || []).map((p) => PRESET_QUERY[p]).filter(Boolean);
+  const presetParts = (presets || [])
+    .map((p) => PRESET_QUERY[p])
+    .filter(Boolean);
+
   const tagParts = (tags || [])
     .map((t) => t.trim())
     .filter(Boolean)
@@ -36,7 +40,8 @@ function buildQuery(presets: string[], tags: string[]) {
   const all = [...presetParts, ...tagParts];
 
   if (all.length === 0) return PRESET_QUERY.Tech;
-  return all.length === 1 ? all[0] : `(${all.join(" OR ")})`;
+
+  return all.join(" AND ");
 }
 
 function cacheKey(os: string, q: string, count: number) {
@@ -58,75 +63,62 @@ const NewsWidget = () => {
 
   const count = Math.min(10, Math.max(1, settings.news.count || 4));
 
-  const fetchNews = async (opts?: { force?: boolean }) => {
+  const fetchNews = async (force = false) => {
     const key = cacheKey(os, q, count);
 
-    if (!opts?.force) {
-      try {
-        const cached = sessionStorage.getItem(key);
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed)) {
-            setItems(parsed);
-            setError(null);
-            return;
-          }
-        }
-      } catch {}
+    if (!force) {
+      const cached = sessionStorage.getItem(key);
+      if (cached) {
+        setItems(JSON.parse(cached));
+        return;
+      }
     }
 
     setLoading(true);
     setError(null);
 
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 10000);
-
     try {
       const url =
-        `/.netlify/functions/news` +
-        `?q=${encodeURIComponent(q)}` +
-        `&count=${encodeURIComponent(String(count))}` +
-        `&os=${encodeURIComponent(os)}`;
+        `/.netlify/functions/news?q=${encodeURIComponent(q)}` +
+        `&count=${count}`;
 
-      const res = await fetch(url, { signal: controller.signal });
-      const data = await res.json().catch(() => ({}));
+      const res = await fetch(url);
+      const data = await res.json();
 
-      if (!res.ok) {
-        const msg = data?.error || `News error (HTTP ${res.status})`;
-        throw new Error(msg);
+      if (!res.ok) throw new Error(data?.error || "News fetch failed");
+
+      let articles: Article[] = data.articles || [];
+
+      // STRONGER FILTERING
+      if (settings.news.presets.includes("TamilNadu")) {
+        articles = articles.filter((a) =>
+          /tamil|chennai|coimbatore|madurai|salem|tiruchirappalli/i.test(
+            (a.title || "") + " " + (a.description || "")
+          )
+        );
       }
 
-      const normalized: Article[] = Array.isArray(data?.articles)
-        ? data.articles
-            .filter((a: any) => a?.title && a?.url)
-            .map((a: any) => ({
-              title: String(a.title),
-              url: String(a.url),
-              source: { name: String(a?.source?.name || "Unknown") },
-              publishedAt: a?.publishedAt ? String(a.publishedAt) : undefined,
-            }))
-            .slice(0, count)
-        : [];
+      if (settings.news.presets.includes("Education")) {
+        articles = articles.filter((a) =>
+          /exam|neet|jee|tnpsc|school|college|education/i.test(
+            (a.title || "") + " " + (a.description || "")
+          )
+        );
+      }
 
-      setItems(normalized);
-      try {
-        sessionStorage.setItem(key, JSON.stringify(normalized));
-      } catch {}
+      articles = articles.slice(0, count);
+
+      setItems(articles);
+      sessionStorage.setItem(key, JSON.stringify(articles));
     } catch (e: any) {
-      const msg =
-        e?.name === "AbortError"
-          ? "News request timed out. Tap refresh."
-          : (e?.message || "Couldn’t load news right now.");
-      setError(msg);
+      setError(e.message || "Could not load news.");
     } finally {
-      window.clearTimeout(timeout);
       setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchNews();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, count, os]);
 
   return (
@@ -136,39 +128,17 @@ const NewsWidget = () => {
           <p className="kos-label">Daily Briefing</p>
           <button
             className="kos-button px-2 py-1 text-xs"
-            onClick={() => fetchNews({ force: true })}
-            title="Refresh"
-            aria-label="Refresh news"
+            onClick={() => fetchNews(true)}
           >
             <RefreshCcw size={12} className={loading ? "animate-spin" : ""} />
           </button>
         </div>
-
-        {/* intentionally empty right side so your OS controls don’t overlap */}
         <div />
       </div>
 
       <div className="flex flex-col gap-2.5">
-        {error && <p className="kos-mono text-[10px] text-muted-foreground">{error}</p>}
-
-        {loading && items.length === 0 && (
-          <>
-            {Array.from({ length: count }).map((_, i) => (
-              <div key={i} className="flex items-start gap-2.5 rounded-button p-2 bg-primary/5 animate-pulse">
-                <div className="mt-0.5 h-6 w-6 rounded-button bg-primary/10" />
-                <div className="flex-1">
-                  <div className="h-3 w-5/6 rounded bg-primary/10" />
-                  <div className="mt-2 h-2 w-1/3 rounded bg-primary/10" />
-                </div>
-              </div>
-            ))}
-          </>
-        )}
-
-        {!loading && !error && items.length === 0 && (
-          <p className="kos-mono text-[10px] text-muted-foreground">
-            No results. Try fewer tags or different topics in settings.
-          </p>
+        {error && (
+          <p className="kos-mono text-[10px] text-muted-foreground">{error}</p>
         )}
 
         {items.map((item, i) => (
@@ -184,8 +154,12 @@ const NewsWidget = () => {
             </div>
 
             <div className="min-w-0 flex-1">
-              <p className="kos-body text-xs font-medium leading-snug line-clamp-2">{item.title}</p>
-              <p className="kos-mono text-[10px] mt-0.5">{item.source.name}</p>
+              <p className="kos-body text-xs font-medium leading-snug line-clamp-2">
+                {item.title}
+              </p>
+              <p className="kos-mono text-[10px] mt-0.5">
+                {item.source?.name}
+              </p>
             </div>
 
             <ExternalLink
