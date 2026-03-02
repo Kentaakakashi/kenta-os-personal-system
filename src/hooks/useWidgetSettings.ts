@@ -1,97 +1,90 @@
-import { useState, useCallback, useEffect } from "react";
-import { getActiveOS, storageKeys } from "@/lib/profileKeys";
-import { writeProfilePartial } from "@/lib/profileDb";
+import { useEffect, useMemo, useState } from "react";
+import { useOSTheme } from "@/hooks/useOSTheme";
 
-export type NewsPresetKey =
-  | "AI"
-  | "Tech"
-  | "World"
-  | "Business"
-  | "Science"
-  | "Sports"
-  | "Gaming"
-  | "Health"
-  | "Entertainment"
-  | "Education"
-  | "TamilNadu";
-
-export interface WidgetSettings {
+export type WidgetSettings = {
   weather: { unit: "celsius" | "fahrenheit"; location: string };
-  news: {
-    count: number;
-    presets: NewsPresetKey[];
-    tags: string[];
-  };
+  news: { count: number; presets: string[]; tags: string[] };
   music: { defaultVolume: number; autoplay: boolean; skipSeconds: number };
   focus: { workMinutes: number; breakMinutes: number; rounds: number };
-}
+};
+
+type Key = keyof WidgetSettings;
+
+const STORAGE_KEY = "pooka_widget_settings_v1";
 
 function defaultsFor(os: "kenta" | "lemon"): WidgetSettings {
   return {
     weather: { unit: "celsius", location: "Tokyo" },
     news:
       os === "lemon"
-        ? { count: 4, presets: ["TamilNadu", "Education"], tags: ["exam", "school", "college"] }
+        ? {
+            count: 4,
+            presets: ["Education"],
+            // Defaults lean towards exams/studies (esp. JEE) without hard-locking you into one region.
+            tags: [
+              "JEE",
+              "JEE Main",
+              "JEE Advanced",
+              "NEET",
+              "board exam",
+              "result",
+              "admission",
+              "scholarship",
+              "education",
+              "Tamil Nadu",
+            ],
+          }
         : { count: 4, presets: ["Tech", "AI"], tags: [] },
     music: { defaultVolume: 75, autoplay: false, skipSeconds: 5 },
     focus: { workMinutes: 25, breakMinutes: 5, rounds: 4 },
   };
 }
 
-function loadSettings(os: "kenta" | "lemon") {
-  const DEFAULT_SETTINGS = defaultsFor(os);
-
+function safeParse<T>(raw: string | null): T | null {
+  if (!raw) return null;
   try {
-    const stored = localStorage.getItem(storageKeys.widgetSettings(os));
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      return {
-        ...DEFAULT_SETTINGS,
-        ...parsed,
-        weather: { ...DEFAULT_SETTINGS.weather, ...(parsed.weather || {}) },
-        news: { ...DEFAULT_SETTINGS.news, ...(parsed.news || {}) },
-        music: { ...DEFAULT_SETTINGS.music, ...(parsed.music || {}) },
-        focus: { ...DEFAULT_SETTINGS.focus, ...(parsed.focus || {}) },
-      } as WidgetSettings;
-    }
-  } catch {}
-
-  return DEFAULT_SETTINGS;
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
 }
 
 export function useWidgetSettings() {
-  const os = getActiveOS();
-  const [settings, setSettings] = useState<WidgetSettings>(() => loadSettings(os));
+  const { os } = useOSTheme();
 
-  useEffect(() => {
-    const onUpdate = (e: any) => {
-      if (e?.detail?.os !== os) return;
-      setSettings(loadSettings(os));
-    };
+  const initial = useMemo(() => {
+    const parsed = safeParse<Partial<WidgetSettings>>(
+      localStorage.getItem(STORAGE_KEY)
+    );
 
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === storageKeys.widgetSettings(os)) setSettings(loadSettings(os));
-    };
-
-    window.addEventListener("kos-profile-update", onUpdate as any);
-    window.addEventListener("storage", onStorage);
-    return () => {
-      window.removeEventListener("kos-profile-update", onUpdate as any);
-      window.removeEventListener("storage", onStorage);
-    };
+    const base = defaultsFor(os);
+    return {
+      weather: { ...base.weather, ...(parsed?.weather ?? {}) },
+      news: { ...base.news, ...(parsed?.news ?? {}) },
+      music: { ...base.music, ...(parsed?.music ?? {}) },
+      focus: { ...base.focus, ...(parsed?.focus ?? {}) },
+    } as WidgetSettings;
   }, [os]);
 
-  const updateSettings = useCallback(
-    <K extends keyof WidgetSettings>(widget: K, update: Partial<WidgetSettings[K]>) => {
-      setSettings((prev) => {
-        const next = { ...prev, [widget]: { ...prev[widget], ...update } } as WidgetSettings;
-        localStorage.setItem(storageKeys.widgetSettings(os), JSON.stringify(next));
-        writeProfilePartial(os, { widgetSettings: next });
-        return next;
-      });
-    },
-    [os]
-  );
+  const [settings, setSettings] = useState<WidgetSettings>(initial);
 
-  return { settings, updateSettings };
-}
+  useEffect(() => {
+    setSettings(initial);
+  }, [initial]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  }, [settings]);
+
+  const update = <TKey extends Key>(
+    key: TKey,
+    patch: Partial<WidgetSettings[TKey]>
+  ) => {
+    setSettings((prev) => ({
+      ...prev,
+      [key]: { ...prev[key], ...patch },
+    }));
+  };
+
+  return { settings, update };
+                         }
