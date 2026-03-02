@@ -1,176 +1,205 @@
 import { useEffect, useMemo, useState } from "react";
-import { ExternalLink, Newspaper, RefreshCcw } from "lucide-react";
+import { RotateCw, Settings } from "lucide-react";
+import { WidgetCard } from "@/components/WidgetCard";
 import { useWidgetSettings } from "@/hooks/useWidgetSettings";
-import { getActiveOS } from "@/lib/profileKeys";
+import { useOS } from "@/hooks/useOS";
 
-type Article = {
+type NewsItem = {
   title: string;
-  url: string;
-  source: { name: string };
+  source?: string;
+  url?: string;
   publishedAt?: string;
-  description?: string;
 };
 
 const PRESET_QUERY: Record<string, string> = {
-  AI: '(AI OR "artificial intelligence" OR "machine learning")',
-  Tech: '(technology OR gadgets OR software)',
-  World: "(world OR geopolitics)",
-  Business: "(business OR economy OR markets)",
-  Science: "(science OR research OR space)",
-  Sports: "(sports OR cricket OR football)",
-  Gaming: '(gaming OR esports)',
-  Health: "(health OR medicine)",
-  Entertainment: "(entertainment OR movies OR music)",
-  Education:
-    '(education OR school OR college OR university OR exam OR NEET OR JEE OR TNPSC OR syllabus)',
   TamilNadu:
-    '("Tamil Nadu" OR Chennai OR Coimbatore OR Madurai OR Salem OR Tiruchirappalli OR Tirunelveli)',
+    '(Tamil Nadu OR Chennai OR Coimbatore OR Madurai OR "TN Government" OR "Tamil Nadu education")',
+  Education:
+    '(education OR school OR college OR university OR exam OR syllabus OR "entrance exam" OR "JEE" OR "NEET" OR CBSE OR "state board")',
+  Tech: "(technology OR startups OR gadget OR software OR AI OR cybersecurity)",
+  AI: "(AI OR artificial intelligence OR OpenAI OR Google DeepMind OR LLM)",
+  Business: "(business OR economy OR markets OR finance OR stocks)",
+  Sports: "(sports OR cricket OR football OR olympics)",
+  Entertainment: "(movies OR cinema OR music OR streaming OR celebrity)",
 };
 
-function buildQuery(presets: string[], tags: string[]) {
-  const presetParts = (presets || [])
-    .map((p) => PRESET_QUERY[p])
-    .filter(Boolean);
+function cacheKey(os: string, q: string, count: number, page: number) {
+  return `kos-news:${os}:${count}:${page}:${q}`;
+}
 
+function buildQuery(presets: string[], tags: string[]) {
+  const presetParts = (presets || []).map((p) => PRESET_QUERY[p]).filter(Boolean);
+
+  // Custom tags are treated as an OR-group, then AND'ed with presets
   const tagParts = (tags || [])
     .map((t) => t.trim())
     .filter(Boolean)
     .map((t) => `"${t.replace(/"/g, "")}"`);
 
-  const all = [...presetParts, ...tagParts];
+  // If user selected multiple preset "topics", treat it as narrowing (AND),
+  // because people usually pick more buttons to get *more specific* news.
+  const presetExpr =
+    presetParts.length === 0
+      ? ""
+      : presetParts.length === 1
+        ? presetParts[0]
+        : presetParts.map((p) => `(${p})`).join(" AND ");
 
-  if (all.length === 0) return PRESET_QUERY.Tech;
+  const tagExpr =
+    tagParts.length === 0
+      ? ""
+      : tagParts.length === 1
+        ? tagParts[0]
+        : `(${tagParts.join(" OR ")})`;
 
-  return all.join(" AND ");
+  if (!presetExpr && !tagExpr) return PRESET_QUERY.Education; // sensible default
+
+  if (presetExpr && tagExpr) return `(${presetExpr}) AND ${tagExpr}`;
+  return presetExpr || tagExpr;
 }
 
-function cacheKey(os: string, q: string, count: number) {
-  return `kos-news:${os}:${count}:${q}`;
-}
-
-const NewsWidget = () => {
-  const { settings } = useWidgetSettings();
-  const os = getActiveOS();
-
-  const q = useMemo(
-    () => buildQuery(settings.news.presets || [], settings.news.tags || []),
-    [settings.news.presets, settings.news.tags]
-  );
-
-  const [items, setItems] = useState<Article[]>([]);
+export default function NewsWidget() {
+  const { os } = useOS();
+  const { settings, openWidgetSettings } = useWidgetSettings(os);
+  const [items, setItems] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
 
   const count = Math.min(10, Math.max(1, settings.news.count || 4));
+  const [page, setPage] = useState(1);
 
-  const fetchNews = async (force = false) => {
-    const key = cacheKey(os, q, count);
+  const q = useMemo(() => {
+    return buildQuery(settings.news.presets || [], settings.news.tags || []);
+  }, [settings.news.presets, settings.news.tags]);
 
-    if (!force) {
-      const cached = sessionStorage.getItem(key);
-      if (cached) {
-        setItems(JSON.parse(cached));
-        return;
-      }
-    }
+  async function fetchNews(opts?: { force?: boolean }) {
+    const nextPage = opts?.force ? ((page % 3) + 1) : page;
+    if (opts?.force) setPage(nextPage);
 
-    setLoading(true);
-    setError(null);
+    const key = cacheKey(os, q, count, nextPage);
 
     try {
+      setLoading(true);
+      setErr(null);
+
+      if (!opts?.force) {
+        const cached = sessionStorage.getItem(key);
+        if (cached) {
+          const parsed = JSON.parse(cached) as { items: NewsItem[]; ts: number };
+          // cache valid for 10 minutes
+          if (Date.now() - parsed.ts < 10 * 60 * 1000) {
+            setItems(parsed.items);
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
+      // Netlify function endpoint:
       const url =
-        `/.netlify/functions/news?q=${encodeURIComponent(q)}` +
-        `&count=${count}`;
+        `/.netlify/functions/news?` +
+        `q=${encodeURIComponent(q)}` +
+        `&pageSize=${encodeURIComponent(String(count))}` +
+        `&os=${encodeURIComponent(os)}` +
+        `&page=${encodeURIComponent(String(nextPage))}` +
+        `&_=${Date.now()}`;
 
       const res = await fetch(url);
-      const data = await res.json();
-
-      if (!res.ok) throw new Error(data?.error || "News fetch failed");
-
-      let articles: Article[] = data.articles || [];
-
-      // STRONGER FILTERING
-      if (settings.news.presets.includes("TamilNadu")) {
-        articles = articles.filter((a) =>
-          /tamil|chennai|coimbatore|madurai|salem|tiruchirappalli/i.test(
-            (a.title || "") + " " + (a.description || "")
-          )
-        );
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(txt || `Request failed: ${res.status}`);
       }
 
-      if (settings.news.presets.includes("Education")) {
-        articles = articles.filter((a) =>
-          /exam|neet|jee|tnpsc|school|college|education/i.test(
-            (a.title || "") + " " + (a.description || "")
-          )
-        );
+      const data = (await res.json()) as { items: NewsItem[] };
+      const got = Array.isArray(data.items) ? data.items : [];
+
+      // If query got too strict, don't show an empty widget: show a useful message.
+      if (got.length === 0) {
+        setItems([]);
+        setErr("No news matched your filters. Try fewer topics/tags.");
+        sessionStorage.removeItem(key);
+        return;
       }
 
-      articles = articles.slice(0, count);
-
-      setItems(articles);
-      sessionStorage.setItem(key, JSON.stringify(articles));
+      setItems(got);
+      sessionStorage.setItem(key, JSON.stringify({ items: got, ts: Date.now() }));
     } catch (e: any) {
-      setError(e.message || "Could not load news.");
+      setErr(e?.message || "Couldn't load news right now.");
+      setItems([]);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   useEffect(() => {
     fetchNews();
-  }, [q, count, os]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [os, q, count]);
 
   return (
-    <div id="newsWidget" className="kos-surface p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <p className="kos-label">Daily Briefing</p>
+    <WidgetCard className="relative">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="text-xs tracking-widest opacity-70">DAILY BRIEFING</div>
+
+          {/* Refresh moved here so it doesn't get buried under the widget controls */}
           <button
-            className="kos-button px-2 py-1 text-xs"
-            onClick={() => fetchNews(true)}
+            onClick={() => fetchNews({ force: true })}
+            className="kos-icon-btn"
+            title="Refresh"
+            aria-label="Refresh news"
+            disabled={loading}
           >
-            <RefreshCcw size={12} className={loading ? "animate-spin" : ""} />
+            <RotateCw size={16} className={loading ? "animate-spin" : ""} />
           </button>
         </div>
-        <div />
-      </div>
 
-      <div className="flex flex-col gap-2.5">
-        {error && (
-          <p className="kos-mono text-[10px] text-muted-foreground">{error}</p>
-        )}
-
-        {items.map((item, i) => (
-          <a
-            key={i}
-            href={item.url}
-            target="_blank"
-            rel="noreferrer"
-            className="group flex items-start gap-2.5 rounded-button p-2 transition-colors hover:bg-primary/5 cursor-pointer"
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => openWidgetSettings("news")}
+            className="kos-icon-btn"
+            title="Settings"
+            aria-label="News settings"
           >
-            <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-button bg-primary/10">
-              <Newspaper size={12} className="text-primary" />
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <p className="kos-body text-xs font-medium leading-snug line-clamp-2">
-                {item.title}
-              </p>
-              <p className="kos-mono text-[10px] mt-0.5">
-                {item.source?.name}
-              </p>
-            </div>
-
-            <ExternalLink
-              size={10}
-              className="mt-1 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
-            />
-          </a>
-        ))}
+            <Settings size={16} />
+          </button>
+        </div>
       </div>
-    </div>
-  );
-};
 
-export default NewsWidget;
+      {err ? (
+        <div className="text-sm opacity-70">{err}</div>
+      ) : loading && items.length === 0 ? (
+        <div className="text-sm opacity-70">Loading news...</div>
+      ) : items.length === 0 ? (
+        <div className="text-sm opacity-70">Couldn&apos;t load news right now.</div>
+      ) : (
+        <div className="space-y-4">
+          {items.map((n, idx) => (
+            <a
+              key={idx}
+              href={n.url || "#"}
+              target={n.url ? "_blank" : undefined}
+              rel={n.url ? "noreferrer" : undefined}
+              className="block group"
+            >
+              <div className="flex gap-3 items-start">
+                <div className="mt-1">
+                  <div className="kos-news-icon" />
+                </div>
+
+                <div className="min-w-0">
+                  <div className="text-sm leading-snug group-hover:underline underline-offset-4">
+                    {n.title}
+                  </div>
+                  {n.source ? (
+                    <div className="text-xs opacity-60 mt-1">{n.source}</div>
+                  ) : null}
+                </div>
+              </div>
+            </a>
+          ))}
+        </div>
+      )}
+    </WidgetCard>
+  );
+}
